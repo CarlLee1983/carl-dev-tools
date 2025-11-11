@@ -17,6 +17,8 @@
 ```
 scripts/
 ├── README.md                 # 主要說明文件
+├── devkit                    # 🆕 全域 CLI 工具
+├── install.sh                # 🆕 DevKit 安裝腳本
 ├── git/                      # Git 相關工具
 │   ├── README.md            # Git 工具說明
 │   ├── clean-branch.sh      # 分支清理工具
@@ -28,7 +30,58 @@ scripts/
 └── utils/                    # 通用工具（未來擴展）
 ```
 
+## 🚀 快速開始
+
+### 使用 DevKit 全域工具
+
+DevKit 是一個統一的 CLI 工具，讓您可以在任何地方輕鬆存取所有腳本功能。
+
+```bash
+# 安裝 DevKit 到系統（推薦）
+./install.sh --system
+
+# 或建立別名（簡單方式）
+./install.sh --alias
+
+# 查看所有可用工具
+devkit
+
+# 執行 Git 工具
+devkit git:release-tag
+devkit git:clean-branch
+devkit git:sync-all
+
+# 互動式選單
+devkit -i
+```
+
 ## 📦 工具分類
+
+### 🛠️ DevKit CLI 工具
+
+全域命令列介面，提供統一的工具管理和執行功能。
+
+**主要功能：**
+- 🔍 自動掃描和註冊所有腳本工具
+- 📂 按分類組織和瀏覽工具
+- 🎯 直接執行指定工具
+- 🖥️ 互動式選單系統
+- 🌐 全域安裝支援
+
+**使用方式：**
+```bash
+# 顯示所有工具
+devkit
+
+# 顯示特定分類
+devkit git
+
+# 執行指定工具
+devkit git:release-tag
+
+# 互動式選單
+devkit --interactive
+```
 
 ### 🔧 Git 工具 (`git/`)
 
@@ -105,17 +158,40 @@ git-tag
 
 ## 🛠️ 安裝方式
 
-### 方法一：直接下載
+### 方法一：DevKit 全域安裝（推薦）
+```bash
+# 下載專案
+git clone <repository-url> ~/scripts
+cd ~/scripts
+
+# 安裝 DevKit 到系統
+./install.sh --system
+
+# 或安裝到使用者目錄
+./install.sh --user
+
+# 或建立別名（最簡單）
+./install.sh --alias
+
+# 測試安裝
+devkit --help
+```
+
+### 方法二：直接使用腳本
 ```bash
 # 下載到本地 scripts 目錄
 git clone <repository-url> ~/scripts
 cd ~/scripts
 chmod +x *.sh
+
+# 使用 DevKit 本地版本
+./devkit
 ```
 
-### 方法二：設定別名
+### 方法三：傳統別名方式
 ```bash
 # 加入到 ~/.zshrc 或 ~/.bashrc
+alias devkit="~/scripts/devkit"
 alias git-clean="~/scripts/git/clean-branch.sh"
 alias git-sync="~/scripts/git/sync-all.sh"
 alias git-tag="~/scripts/git/release-tag.sh"
