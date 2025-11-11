@@ -1,20 +1,39 @@
-# Git 工具腳本集合
+# 開發工具腳本集合
 
-這是一個包含實用 Git 自動化工具的腳本集合，旨在簡化日常 Git 操作流程。
+這是一個按功能分類組織的實用腳本集合，旨在簡化日常開發和系統管理工作。
 
 ## 🚀 功能特色
 
-- ✅ 自動偵測主要分支（main/master/develop）
+- 📁 按功能分類組織，便於管理和擴展
+- ✅ 自動偵測和智慧處理
 - 🎨 彩色輸出介面，清楚易讀
 - 🛡️ 安全的互動式確認機制
 - 🔧 完整的錯誤處理和網路檢查
-- ⚡ 支援強制模式跳過確認
-- 📖 內建說明文件
+- ⚡ 支援強制模式和批次處理
+- 📖 完整的說明文件
 
-## 📦 包含工具
+## 📂 目錄結構
 
-### 1. git-clean-branch.sh - 智慧分支清理工具
+```
+scripts/
+├── README.md                 # 主要說明文件
+├── git/                      # Git 相關工具
+│   ├── README.md            # Git 工具說明
+│   ├── clean-branch.sh      # 分支清理工具
+│   └── sync-all.sh          # 分支同步工具
+├── dev/                      # 開發工具（未來擴展）
+├── system/                   # 系統管理工具（未來擴展）
+├── deploy/                   # 部署相關工具（未來擴展）
+└── utils/                    # 通用工具（未來擴展）
+```
 
+## 📦 工具分類
+
+### 🔧 Git 工具 (`git/`)
+
+專門處理 Git 相關操作的自動化工具。
+
+#### clean-branch.sh - 智慧分支清理工具
 自動清理已合併到主要分支的功能性分支，支援本地和遠端分支清理。
 
 **支援的分支類型：**
@@ -29,31 +48,37 @@
 **使用方式：**
 ```bash
 # 自動偵測主要分支並互動式確認
-./git-clean-branch.sh
+./git/clean-branch.sh
 
 # 指定基礎分支
-./git-clean-branch.sh develop
+./git/clean-branch.sh develop
 
 # 強制模式（跳過確認）
-./git-clean-branch.sh --force
+./git/clean-branch.sh --force
 
 # 顯示說明
-./git-clean-branch.sh --help
+./git/clean-branch.sh --help
 ```
 
-### 2. git-sync-all.sh - 專案分支同步工具
-
+#### sync-all.sh - 專案分支同步工具
 自動同步專案中的所有指定分支，確保本地分支與遠端保持同步。
 
 **使用方式：**
 ```bash
 # 在專案目錄下執行
-./git-sync-all.sh
+./git/sync-all.sh
 
 # 或設定別名使用
-alias gitsync="~/scripts/git-sync-all.sh"
-gitsync
+alias git-sync="~/scripts/git/sync-all.sh"
+git-sync
 ```
+
+### 🚀 未來擴展計劃
+
+- **`dev/`** - 開發環境設定、程式碼品質檢查、測試自動化
+- **`system/`** - 系統清理、效能監控、日誌管理
+- **`deploy/`** - 自動部署、環境管理、容器化工具
+- **`utils/`** - 檔案處理、文字處理、資料轉換等通用工具
 
 ## 🛠️ 安裝方式
 
@@ -68,8 +93,8 @@ chmod +x *.sh
 ### 方法二：設定別名
 ```bash
 # 加入到 ~/.zshrc 或 ~/.bashrc
-alias git-clean="~/scripts/git-clean-branch.sh"
-alias git-sync="~/scripts/git-sync-all.sh"
+alias git-clean="~/scripts/git/clean-branch.sh"
+alias git-sync="~/scripts/git/sync-all.sh"
 
 # 重新載入設定
 source ~/.zshrc  # 或 source ~/.bashrc

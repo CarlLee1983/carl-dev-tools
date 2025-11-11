@@ -3,11 +3,11 @@
 # 通用 Git 同步腳本（macOS / Linux 通用）
 # 作者: 李卡爾
 # 功能: 自動同步指定專案中指定分支
-# 使用方式: 在專案目錄下執行 ./scripts/git-sync-all.sh
+# 使用方式: 在專案目錄下執行 ./scripts/git/sync-all.sh
 # 注意: 此腳本會同步所有分支，請確保在專案目錄下執行
 # 建議使用方式
-# 1. 在專案目錄下執行 ./scripts/git-sync-all.sh
-# 2. alias gitsync="~/scripts/git-sync-all.sh" && source ~/.zshrc, then gitsync
+# 1. 在專案目錄下執行 ./scripts/git/sync-all.sh
+# 2. alias git-sync="~/scripts/git/sync-all.sh" && source ~/.zshrc, then git-sync
 # ==========================================
 
 # 使用當前目錄作為專案目錄
