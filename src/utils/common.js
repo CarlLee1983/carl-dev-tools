@@ -5,3 +5,5 @@ export { Logger } from './logger.js';
 export { FileUtils } from './file.js';
 export { PlatformUtils } from './platform.js';
 export { ConfigUtils } from './config.js';
+export { NodeVersionManager } from './node-version-manager.js';
+export { VersionChecker } from './version-check.js';

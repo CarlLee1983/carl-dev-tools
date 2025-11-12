@@ -48,12 +48,49 @@ export class PlatformUtils {
         return path.normalize(filePath);
     }
 
-    /**
-     * 取得使用者主目錄
-     */
     static getHomeDir() {
         return os.homedir();
     }
+
+    static async commandExists(command) {
+        try {
+            await this.executeCommand('which', [command]);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    static async executeCommand(command, args = []) {
+        return new Promise((resolve, reject) => {
+            const child = spawn(command, args, { 
+                stdio: ['pipe', 'pipe', 'pipe'],
+                shell: true 
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            child.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            child.on('close', (code) => {
+                if (code === 0) {
+                    resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
+                } else {
+                    reject(new Error(`Command failed with code ${code}: ${stderr || stdout}`));
+                }
+            });
+
+            child.on('error', reject);
+        });
+    }
+
 
     /**
      * 取得暫存目錄

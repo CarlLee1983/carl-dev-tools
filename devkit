@@ -298,7 +298,7 @@ execute_node_tool() {
     # 檢查 Node.js 版本
     local node_version=$(node -v | sed 's/v//')
     local min_version="18.0.0"
-    local max_version="22.99.99"
+    local max_version="23.99.99"
     
     # 檢查最低版本
     if [[ "$(printf '%s\n' "$min_version" "$node_version" | sort -V | head -n1)" != "$min_version" ]]; then
@@ -309,7 +309,7 @@ execute_node_tool() {
     # 檢查最高版本（警告）
     if [[ "$(printf '%s\n' "$max_version" "$node_version" | sort -V | head -n1)" != "$node_version" ]]; then
         echo -e "${YELLOW}⚠️  Node.js 版本 $node_version 可能未經完整測試${NC}"
-        echo -e "${CYAN}💡 建議使用 Node.js 18.x 或 20.x LTS 版本${NC}"
+        echo -e "${CYAN}💡 建議使用 Node.js 18.x、20.x 或 22.x LTS 版本${NC}"
         echo -e "${CYAN}💡 如遇到問題，請參考 scripts/UPGRADE.md${NC}"
     fi
     
