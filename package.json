@@ -1,6 +1,6 @@
 {
   "name": "@devkit/scripts",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "DevKit 開發工具包 - 統一管理所有開發腳本",
   "private": true,
   "type": "module",
