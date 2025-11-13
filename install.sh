@@ -103,10 +103,9 @@ install_system() {
         fi
     fi
     
-    # 複製檔案
-    if sudo cp "$DEVKIT_SCRIPT" "$target_file"; then
-        sudo chmod +x "$target_file"
-        echo -e "${GREEN}✅ 成功安裝到：$target_file${NC}"
+    # 建立符號連結（而非複製）
+    if sudo ln -sf "$DEVKIT_SCRIPT" "$target_file"; then
+        echo -e "${GREEN}✅ 成功建立符號連結：$target_file${NC}"
         
         # 驗證安裝
         if command -v devkit >/dev/null 2>&1; then
@@ -145,10 +144,9 @@ install_user() {
         fi
     fi
     
-    # 複製檔案
-    if cp "$DEVKIT_SCRIPT" "$target_file"; then
-        chmod +x "$target_file"
-        echo -e "${GREEN}✅ 成功安裝到：$target_file${NC}"
+    # 建立符號連結（而非複製）
+    if ln -sf "$DEVKIT_SCRIPT" "$target_file"; then
+        echo -e "${GREEN}✅ 成功建立符號連結：$target_file${NC}"
         
         # 檢查 PATH 設定
         if [[ ":$PATH:" != *":$target_dir:"* ]]; then
@@ -270,31 +268,36 @@ interactive_install() {
     echo -e "${BOLD}🛠️  DevKit 互動式安裝${NC}"
     echo ""
     echo -e "${CYAN}請選擇安裝方式：${NC}"
-    echo "  1. 系統安裝 (需要 sudo 權限，所有使用者可用)"
-    echo "  2. 使用者安裝 (僅當前使用者可用)"
-    echo "  3. 建立別名 (最簡單的方式)"
+    echo "  1. 建立別名 (推薦 - 最簡單且最穩定)"
+    echo "  2. 使用者安裝 (僅當前使用者可用，使用符號連結)"
+    echo "  3. 系統安裝 (需要 sudo 權限，所有使用者可用，使用符號連結)"
     echo "  4. 取消安裝"
     echo ""
+    echo -e "${YELLOW}💡 提示：建議使用別名方式，確保工具能正確找到所有腳本${NC}"
+    echo ""
     
-    read -p "請輸入選項 (1-4): " choice
+    read -p "請輸入選項 (1-4，預設為 1): " choice
+    
+    # 如果沒有輸入，預設選擇別名
+    choice=${choice:-1}
     
     case "$choice" in
         1)
-            INSTALL_METHOD="system"
+            INSTALL_METHOD="alias"
             ;;
         2)
             INSTALL_METHOD="user"
             ;;
         3)
-            INSTALL_METHOD="alias"
+            INSTALL_METHOD="system"
             ;;
         4)
             echo -e "${YELLOW}已取消安裝${NC}"
             exit 0
             ;;
         *)
-            echo -e "${RED}❌ 無效選項${NC}"
-            exit 1
+            echo -e "${RED}❌ 無效選項，使用預設的別名安裝${NC}"
+            INSTALL_METHOD="alias"
             ;;
     esac
 }

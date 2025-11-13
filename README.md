@@ -158,47 +158,47 @@ git-tag
 
 ## 🛠️ 安裝方式
 
-### 方法一：DevKit 全域安裝（推薦）
+### 方法一：一鍵安裝（最推薦）
 ```bash
-# 下載專案
-git clone <repository-url> ~/scripts
-cd ~/scripts
+# 下載專案到任意位置（不限於 ~/scripts）
+git clone <repository-url> ~/devkit
+cd ~/devkit
 
-# 安裝 DevKit 到系統
-./install.sh --system
+# 執行安裝腳本（會引導互動式選擇，預設使用別名方式）
+./install.sh
 
-# 或安裝到使用者目錄
-./install.sh --user
-
-# 或建立別名（最簡單）
-./install.sh --alias
+# 重新載入 shell 設定
+source ~/.zshrc  # 或 source ~/.bashrc
 
 # 測試安裝
 devkit --help
 ```
 
-### 方法二：直接使用腳本
+### 方法二：指定安裝方式
 ```bash
-# 下載到本地 scripts 目錄
-git clone <repository-url> ~/scripts
-cd ~/scripts
-chmod +x *.sh
+# 建立別名（推薦 - 最穩定）
+./install.sh --alias
+source ~/.zshrc  # 或 source ~/.bashrc
 
-# 使用 DevKit 本地版本
-./devkit
+# 安裝到使用者目錄（使用符號連結）
+./install.sh --user
+
+# 安裝到系統（需要 sudo，使用符號連結）
+./install.sh --system
 ```
 
-### 方法三：傳統別名方式
+### 方法三：手動設定別名
 ```bash
 # 加入到 ~/.zshrc 或 ~/.bashrc
-alias devkit="~/scripts/devkit"
-alias git-clean="~/scripts/git/clean-branch.sh"
-alias git-sync="~/scripts/git/sync-all.sh"
-alias git-tag="~/scripts/git/release-tag.sh"
+alias devkit="~/你的專案路徑/devkit"
 
 # 重新載入設定
 source ~/.zshrc  # 或 source ~/.bashrc
 ```
+
+**重要提示：** 
+- 推薦使用別名或符號連結方式，確保 devkit 能正確找到所有工具腳本
+- 專案可以安裝在任何位置，不限於 `~/scripts` 目錄
 
 ## ⚙️ 系統需求
 

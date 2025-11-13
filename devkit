@@ -136,7 +136,7 @@ show_all_tools() {
     
     if [ ${#categories[@]} -eq 0 ]; then
         echo -e "${YELLOW}⚠️  沒有找到任何工具${NC}"
-        echo -e "${CYAN}💡 請確認 scripts 目錄下有可用的腳本檔案${NC}"
+        echo -e "${CYAN}💡 請確認目錄結構完整：需要 bash-tools/ 和 node-tools/ 子目錄${NC}"
         return
     fi
     
