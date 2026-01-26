@@ -8,10 +8,15 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # 預設值
 FORCE_MODE=false
+# 預設掃描所有已合併的分支（更安全，因為只掃描已合併的）
+SCAN_ALL=true
+DEBUG_MODE=false
+CUSTOM_PATTERN=""
 
 # 解析命令列參數
 while [[ $# -gt 0 ]]; do
@@ -20,16 +25,33 @@ while [[ $# -gt 0 ]]; do
             FORCE_MODE=true
             shift
             ;;
+        --pattern|-p)
+            CUSTOM_PATTERN="$2"
+            SCAN_ALL=false  # 使用自訂模式時，限制掃描範圍
+            shift 2
+            ;;
+        --debug|-d)
+            DEBUG_MODE=true
+            shift
+            ;;
         -h|--help)
             echo "使用方式: $0 [選項] [基礎分支]"
             echo "選項:"
-            echo "  --force, -f    跳過確認直接刪除分支"
-            echo "  --help, -h     顯示此說明"
+            echo "  --force, -f          跳過確認直接刪除分支"
+            echo "  --pattern, -p PATTERN  只掃描符合自訂模式的分支（正則表達式）"
+            echo "  --debug, -d          顯示詳細掃描過程"
+            echo "  --help, -h           顯示此說明"
+            echo ""
+            echo "說明:"
+            echo "  預設會掃描所有已合併到基礎分支的分支（已合併的分支是安全的）"
+            echo "  使用 --pattern 可以限制只掃描符合特定命名模式的分支"
             echo ""
             echo "範例:"
-            echo "  $0                    # 自動偵測主要分支"
-            echo "  $0 develop           # 使用 develop 作為基礎分支"
-            echo "  $0 --force main      # 強制模式，使用 main 分支"
+            echo "  $0                          # 掃描所有已合併的分支（預設）"
+            echo "  $0 develop                  # 使用 develop 作為基礎分支"
+            echo "  $0 --force main             # 強制模式，使用 main 分支"
+            echo "  $0 --pattern 'bug-|issue-'   # 只掃描符合自訂模式的分支"
+            echo "  $0 --debug                 # 顯示詳細掃描資訊"
             exit 0
             ;;
         *)
@@ -85,26 +107,87 @@ check_network() {
 get_merged_local_branches() {
     local base_branch="$1"
     
-    # 功能分支模式：feature/, fix/, feat/, test/, hotfix/, bugfix/, chore/
-    local branch_patterns="(feature/|fix/|feat/|test/|hotfix/|bugfix/|chore/)"
-    
-    git branch --merged "$base_branch" | \
+    # 獲取所有已合併的分支（排除當前分支和主要分支）
+    local all_merged=$(git branch --merged "$base_branch" | \
         egrep -v "(^\*|master|main|develop|testing|staging|production)" | \
-        grep -E "$branch_patterns" | \
-        sed 's/^[[:space:]]*//' || true
+        sed 's/^[[:space:]]*//' || true)
+    
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        echo -e "${BLUE}🔍 所有已合併的本地分支：${NC}" >&2
+        echo "$all_merged" | while read -r branch; do
+            [[ -n "$branch" ]] && echo -e "  ${CYAN}  - $branch${NC}" >&2
+        done
+    fi
+    
+    # 預設掃描所有已合併的分支
+    if [[ "$SCAN_ALL" == "true" ]]; then
+        echo "$all_merged"
+        return
+    fi
+    
+    # 如果指定了自訂模式，只返回符合模式的分支
+    if [[ -n "$CUSTOM_PATTERN" ]]; then
+        local filtered=$(echo "$all_merged" | grep -E "$CUSTOM_PATTERN" || true)
+        if [[ "$DEBUG_MODE" == "true" ]]; then
+            echo -e "${BLUE}🔍 符合自訂模式的分支：${NC}" >&2
+            echo "$filtered" | while read -r branch; do
+                [[ -n "$branch" ]] && echo -e "  ${GREEN}  ✓ $branch${NC}" >&2
+            done
+            local excluded=$(echo "$all_merged" | grep -vE "$CUSTOM_PATTERN" || true)
+            if [[ -n "$excluded" ]]; then
+                echo -e "${YELLOW}⚠️  被過濾掉的分支（不符合自訂模式）：${NC}" >&2
+                echo "$excluded" | while read -r branch; do
+                    [[ -n "$branch" ]] && echo -e "  ${YELLOW}  - $branch${NC}" >&2
+                done
+            fi
+        fi
+        echo "$filtered"
+        return
+    fi
 }
 
 # 取得已合併的遠端分支
 get_merged_remote_branches() {
     local base_branch="$1"
     
-    # 功能分支模式：feature/, fix/, feat/, test/, hotfix/, bugfix/, chore/
-    local branch_patterns="(feature/|fix/|feat/|test/|hotfix/|bugfix/|chore/)"
-    
-    git branch -r --merged "origin/$base_branch" | \
-        grep -E "$branch_patterns" | \
+    # 獲取所有已合併的遠端分支（排除 HEAD）
+    local all_merged=$(git branch -r --merged "origin/$base_branch" | \
         grep -v "origin/HEAD" | \
-        sed 's/^[[:space:]]*origin\///' || true
+        sed 's/^[[:space:]]*origin\///' | \
+        egrep -v "(^master$|^main$|^develop$|^testing$|^staging$|^production$)" || true)
+    
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        echo -e "${BLUE}🔍 所有已合併的遠端分支：${NC}" >&2
+        echo "$all_merged" | while read -r branch; do
+            [[ -n "$branch" ]] && echo -e "  ${CYAN}  - $branch${NC}" >&2
+        done
+    fi
+    
+    # 預設掃描所有已合併的分支
+    if [[ "$SCAN_ALL" == "true" ]]; then
+        echo "$all_merged"
+        return
+    fi
+    
+    # 如果指定了自訂模式，只返回符合模式的分支
+    if [[ -n "$CUSTOM_PATTERN" ]]; then
+        local filtered=$(echo "$all_merged" | grep -E "$CUSTOM_PATTERN" || true)
+        if [[ "$DEBUG_MODE" == "true" ]]; then
+            echo -e "${BLUE}🔍 符合自訂模式的分支：${NC}" >&2
+            echo "$filtered" | while read -r branch; do
+                [[ -n "$branch" ]] && echo -e "  ${GREEN}  ✓ $branch${NC}" >&2
+            done
+            local excluded=$(echo "$all_merged" | grep -vE "$CUSTOM_PATTERN" || true)
+            if [[ -n "$excluded" ]]; then
+                echo -e "${YELLOW}⚠️  被過濾掉的分支（不符合自訂模式）：${NC}" >&2
+                echo "$excluded" | while read -r branch; do
+                    [[ -n "$branch" ]] && echo -e "  ${YELLOW}  - $branch${NC}" >&2
+                done
+            fi
+        fi
+        echo "$filtered"
+        return
+    fi
 }
 
 # 互動式確認函數
@@ -164,7 +247,11 @@ fi
 
 # 處理本地分支
 echo -e "\n${GREEN}🏠 處理本地分支${NC}"
-echo -e "${BLUE}🔍 搜尋已合併的本地分支...${NC}"
+if [[ -n "$CUSTOM_PATTERN" ]]; then
+    echo -e "${BLUE}🔍 搜尋已合併的本地分支（自訂模式: $CUSTOM_PATTERN）...${NC}"
+else
+    echo -e "${BLUE}🔍 搜尋所有已合併的本地分支...${NC}"
+fi
 local_branches=$(get_merged_local_branches "$BASE_BRANCH")
 
 if confirm_deletion "本地" "$local_branches"; then
@@ -183,7 +270,11 @@ fi
 # 處理遠端分支
 if [[ "$NETWORK_OK" == "true" ]]; then
     echo -e "\n${GREEN}🌐 處理遠端分支${NC}"
-    echo -e "${BLUE}🔍 搜尋已合併的遠端分支...${NC}"
+    if [[ -n "$CUSTOM_PATTERN" ]]; then
+        echo -e "${BLUE}🔍 搜尋已合併的遠端分支（自訂模式: $CUSTOM_PATTERN）...${NC}"
+    else
+        echo -e "${BLUE}🔍 搜尋所有已合併的遠端分支...${NC}"
+    fi
     remote_branches=$(get_merged_remote_branches "$BASE_BRANCH")
     
     if confirm_deletion "遠端" "$remote_branches"; then
