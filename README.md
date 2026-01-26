@@ -88,27 +88,31 @@ devkit --interactive
 專門處理 Git 相關操作的自動化工具。
 
 #### clean-branch.sh - 智慧分支清理工具
-自動清理已合併到主要分支的功能性分支，支援本地和遠端分支清理。
+自動清理已合併到主要分支的分支，支援本地和遠端分支清理。
 
-**支援的分支類型：**
-- `feature/` - 功能分支
-- `fix/` - 修復分支  
-- `feat/` - 特性分支
-- `test/` - 測試分支
-- `hotfix/` - 熱修復分支
-- `bugfix/` - 錯誤修復分支
-- `chore/` - 維護分支
+**功能特點：**
+- 預設掃描所有已合併的分支（已合併的分支是安全的）
+- 自動偵測主要分支（main、master、develop）
+- 支援本地和遠端分支清理
+- 互動式確認，避免誤刪
+- 可自訂分支命名模式過濾
 
 **使用方式：**
 ```bash
-# 自動偵測主要分支並互動式確認
+# 掃描所有已合併的分支（預設行為）
 ./git/clean-branch.sh
 
 # 指定基礎分支
 ./git/clean-branch.sh develop
 
+# 只掃描符合特定模式的分支
+./git/clean-branch.sh --pattern 'bug-|issue-'
+
 # 強制模式（跳過確認）
 ./git/clean-branch.sh --force
+
+# 顯示詳細掃描過程
+./git/clean-branch.sh --debug
 
 # 顯示說明
 ./git/clean-branch.sh --help
@@ -239,7 +243,7 @@ DevKit 支援自動 Node.js 版本切換，確保工具在正確版本下運行�
 
 ### 清理分支範例
 ```bash
-$ ./git-clean-branch.sh
+$ ./git/clean-branch.sh
 🚀 開始 Git 分支清理程序
 🔍 偵測主要分支...
 ✓ 偵測到主要分支: main
@@ -247,10 +251,12 @@ $ ./git-clean-branch.sh
 ✓ 網路連線正常
 
 🏠 處理本地分支
-🔍 搜尋已合併的本地分支...
+🔍 搜尋所有已合併的本地分支...
 📋 將要刪除的本地分支：
   ✗ feature/user-login
   ✗ fix/header-bug
+  ✗ bug-123
+  ✗ issue-456
 確定要刪除這些分支嗎？(y/N): y
 ```
 

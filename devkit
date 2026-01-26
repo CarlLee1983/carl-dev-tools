@@ -9,6 +9,7 @@
 # 腳本基本路徑
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS_DIR="$SCRIPT_DIR"
+PACKAGE_JSON="$SCRIPT_DIR/package.json"
 
 # 彩色輸出
 GREEN='\033[0;32m'
@@ -19,7 +20,17 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-VERSION="1.1.0"
+# 從 package.json 讀取版本號
+get_version() {
+    if [ -f "$PACKAGE_JSON" ]; then
+        # 使用 grep 和 sed 提取版本號（更簡單可靠的方法）
+        grep '"version"' "$PACKAGE_JSON" | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' | tr -d '[:space:]'
+    else
+        echo "0.0.0"
+    fi
+}
+
+VERSION=$(get_version)
 
 # 顯示版本資訊
 show_version() {
