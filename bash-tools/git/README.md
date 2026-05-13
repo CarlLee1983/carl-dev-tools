@@ -6,13 +6,14 @@
 
 ### clean-branch.sh - 智慧分支清理工具
 
-自動清理已合併到主要分支的功能性分支，支援本地和遠端分支清理。
+自動清理已合併到主要分支的功能性分支。預設只清理本地分支；遠端分支需明確加入 `--remote` 並輸入二次確認片語。
 
 **功能特色：**
 - 🔍 自動偵測主要分支（main/master/develop）
-- 🎯 智慧過濾功能分支類型
-- 🛡️ 安全的互動式確認機制
-- 🌐 網路狀態檢查
+- 🎯 支援自訂掃描模式與額外保護分支規則
+- 🛡️ 執行前檢查工作區是否乾淨，避免 checkout/pull 影響未提交變更
+- 🌐 遠端清理預設停用，需 `--remote` 加上 `DELETE_REMOTE` 二次確認
+- 🧪 支援 `DEVKIT_GIT_BIN` 指定 git binary，方便模擬與自動化測試
 - ⚡ 支援強制模式
 
 **支援的分支類型：**
@@ -34,6 +35,12 @@
 
 # 強制模式（跳過確認）
 ./git/clean-branch.sh --force
+
+# 額外保護 release/* 分支
+./git/clean-branch.sh --protect 'release/.*'
+
+# 明確啟用遠端分支清理
+./git/clean-branch.sh --remote
 
 # 顯示說明
 ./git/clean-branch.sh --help
@@ -90,9 +97,11 @@ git-sync
 
 ## 🔒 安全特性
 
-- **受保護分支：** 自動跳過重要分支（master, main, develop, testing, staging, production）
+- **受保護分支：** 自動跳過重要分支（master, main, develop, testing, staging, production），並可用 `--protect PATTERN` 增加保護規則
+- **工作區檢查：** `clean-branch.sh` 在 fetch/checkout/pull 前會先確認沒有未提交變更
 - **合併檢查：** 只處理確實已合併的分支（clean-branch.sh）
 - **互動確認：** 顯示將要刪除的分支清單並要求確認
+- **遠端雙重確認：** 遠端清理需明確使用 `--remote`，刪除前還需輸入 `DELETE_REMOTE`
 - **網路檢查：** 自動檢測網路狀態，離線時跳過遠端操作
 - **錯誤處理：** 完整的錯誤捕獲和友善的錯誤訊息
 
@@ -113,6 +122,8 @@ $ ./git/clean-branch.sh
   ✗ feature/user-login
   ✗ fix/header-bug
 確定要刪除這些分支嗎？(y/N): y
+
+ℹ️  遠端分支清理預設未啟用；如需清理遠端分支，請明確加入 --remote
 ```
 
 ### 分支同步範例
