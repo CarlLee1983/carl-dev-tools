@@ -34,6 +34,16 @@ tag_glob() {
     fi
 }
 
+format_tag() {
+    local prefix="$1"
+    local version="$2"
+    if [ -z "$prefix" ]; then
+        printf 'v%s' "$version"
+    else
+        printf '%s/v%s' "$prefix" "$version"
+    fi
+}
+
 # 顯示使用說明
 show_help() {
     echo -e "${BOLD}Git 智慧版本標籤工具${NC}"

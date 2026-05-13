@@ -127,3 +127,15 @@ test('tag_glob: non-empty prefix returns prefix/v*', () => {
     assert.equal(r.status, 0);
     assert.equal(r.stdout, 'release/v*');
 });
+
+test('format_tag: empty prefix returns v<version>', () => {
+    const r = runHelper('printf "%s" "$(format_tag "" "1.2.3")"');
+    assert.equal(r.status, 0);
+    assert.equal(r.stdout, 'v1.2.3');
+});
+
+test('format_tag: non-empty prefix returns prefix/v<version>', () => {
+    const r = runHelper('printf "%s" "$(format_tag "release" "1.2.3")"');
+    assert.equal(r.status, 0);
+    assert.equal(r.stdout, 'release/v1.2.3');
+});
