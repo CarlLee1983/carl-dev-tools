@@ -31,3 +31,10 @@ test('devkit --version prints a concise version line and exits 0', () => {
     assert.equal(r.status, 0, r.combined);
     assert.match(r.combined, /DevKit v\d+\.\d+\.\d+/);
 });
+
+test('devkit default output does not contain malformed Ugit/Uenv labels', () => {
+    const r = runDevkit([]);
+    assert.equal(r.status, 0, r.combined);
+    assert.doesNotMatch(r.combined, /Ugit/);
+    assert.doesNotMatch(r.combined, /Uenv/);
+});

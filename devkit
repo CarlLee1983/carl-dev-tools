@@ -20,6 +20,24 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# 將字串首字母轉為大寫（可攜帶式，不依賴 GNU sed \U）
+title_case() {
+    local word="$1"
+    if [ -z "$word" ]; then
+        printf ''
+        return
+    fi
+    local first rest
+    first=$(printf '%s' "${word:0:1}" | tr '[:lower:]' '[:upper:]')
+    rest="${word:1}"
+    printf '%s%s' "$first" "$rest"
+}
+
+# 統一錯誤輸出：紅色 + 「錯誤：」前綴 + stderr
+print_error() {
+    echo -e "${RED}錯誤：$1${NC}" >&2
+}
+
 # 從 package.json 讀取版本號
 get_version() {
     if [ -f "$PACKAGE_JSON" ]; then
@@ -153,8 +171,10 @@ show_all_tools() {
     
     echo -e "${CYAN}📂 可用分類：${NC}"
     for category in "${categories[@]}"; do
-        local tool_count=$(get_category_tools "$category" | wc -l)
-        local category_display=$(echo "$category" | sed 's/./\U&/')
+        local tool_count
+        tool_count=$(get_category_tools "$category" | wc -l | tr -d '[:space:]')
+        local category_display
+        category_display=$(title_case "$category")
         echo "  $category     - $category_display 相關工具 ($tool_count 個工具)"
     done
     
@@ -162,7 +182,8 @@ show_all_tools() {
     echo -e "${CYAN}🔧 所有工具：${NC}"
     
     for category in "${categories[@]}"; do
-        local category_display=$(echo "$category" | sed 's/./\U&/')
+        local category_display
+        category_display=$(title_case "$category")
         echo -e "${BOLD}  $category_display:${NC}"
         
         get_category_tools "$category" | while IFS='|' read -r tool_name script_path description; do
@@ -201,7 +222,8 @@ show_category_tools() {
         return 1
     fi
     
-    local category_display=$(echo "$category" | sed 's/./\U&/')
+    local category_display
+    category_display=$(title_case "$category")
     echo -e "${BOLD}🔧 $category_display 工具：${NC}"
     echo ""
     
@@ -367,7 +389,8 @@ interactive_menu() {
         local i=1
         
         for category in "${categories[@]}"; do
-            local tool_count=$(get_category_tools "$category" | wc -l)
+            local tool_count
+            tool_count=$(get_category_tools "$category" | wc -l | tr -d '[:space:]')
             echo "  $i. $category ($tool_count 個工具)"
             ((i++))
         done
@@ -398,7 +421,8 @@ interactive_category_menu() {
     
     while true; do
         clear
-        local category_display=$(echo "$category" | sed 's/./\U&/')
+        local category_display
+        category_display=$(title_case "$category")
         echo -e "${BOLD}🔧 $category_display 工具選單${NC}"
         echo ""
         
