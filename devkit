@@ -57,13 +57,14 @@ show_version() {
 }
 
 # 顯示使用說明
+# 顯示使用說明
 show_help() {
     show_version
     echo ""
-    echo -e "${CYAN}使用方式：${NC}"
+    echo -e "${CYAN}使用方式${NC}"
     echo "  devkit [command] [options]"
     echo ""
-    echo -e "${CYAN}命令：${NC}"
+    echo -e "${CYAN}命令${NC}"
     echo "  list                     顯示所有可用工具"
     echo "  <category>               顯示特定分類的工具"
     echo "  <category>:<tool>        執行指定工具"
@@ -71,11 +72,11 @@ show_help() {
     echo "  --help, -h               顯示此說明"
     echo "  --version, -v            顯示版本資訊"
     echo ""
-    echo -e "${CYAN}範例：${NC}"
-    echo "  devkit                   # 顯示所有工具"
-    echo "  devkit git               # 顯示 git 工具"
-    echo "  devkit git:release-tag   # 執行版本標籤工具"
-    echo "  devkit -i                # 互動式選單"
+    echo -e "${CYAN}範例${NC}"
+    echo "  devkit                   顯示所有工具"
+    echo "  devkit git               顯示 git 工具"
+    echo "  devkit git:release-tag   執行版本標籤工具"
+    echo "  devkit -i                互動式選單"
 }
 
 # 獲取所有分類
@@ -395,7 +396,7 @@ execute_node_tool() {
 interactive_menu() {
     while true; do
         clear
-        echo -e "${BOLD}🛠️  Development Toolkit - 互動式選單${NC}"
+        echo -e "${BOLD}DevKit v${VERSION} — 互動式選單${NC}"
         echo ""
         
         local categories=($(get_categories))
@@ -443,7 +444,7 @@ interactive_category_menu() {
         clear
         local category_display
         category_display=$(title_case "$category")
-        echo -e "${BOLD}🔧 $category_display 工具選單${NC}"
+        echo -e "${BOLD}${category_display} 工具選單${NC}"
         echo ""
         
         local tools_info=($(get_category_tools "$category"))
