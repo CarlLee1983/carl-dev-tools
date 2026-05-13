@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, cpSync, chmodSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, cpSync, chmodSync, rmSync, existsSync, symlinkSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -161,5 +161,31 @@ test('devkit --uninstall removes the sandbox-HOME symlink and prints rm -rf hint
         assert.match(combined, /^下一步$/m);
     } finally {
         rmSync(home, { recursive: true, force: true });
+    }
+});
+
+test('devkit invoked via a symlink resolves SCRIPT_DIR to the real install dir', () => {
+    // Regression: SCRIPT_DIR was computed from ${BASH_SOURCE[0]} without following
+    // symlinks, so running devkit through /usr/local/bin/devkit or ~/.local/bin/devkit
+    // pointed SCRIPT_DIR at the symlink's parent (no package.json, no bash-tools/),
+    // producing "DevKit v0.0.0" and "沒有找到任何工具".
+    const linkDir = mkdtempSync(join(tmpdir(), 'devkit-symlink-'));
+    try {
+        mkdirSync(linkDir, { recursive: true });
+        const linkPath = join(linkDir, 'devkit');
+        symlinkSync(devkitPath, linkPath);
+
+        const result = spawnSync('bash', [linkPath, 'list'], { encoding: 'utf8' });
+        const combined = stripAnsi((result.stdout ?? '') + (result.stderr ?? ''));
+
+        assert.equal(result.status, 0, combined);
+        // Version must come from the real package.json, not the 0.0.0 fallback.
+        assert.match(combined, /DevKit v\d+\.\d+\.\d+/);
+        assert.doesNotMatch(combined, /DevKit v0\.0\.0/);
+        // Real tool categories must be discoverable even when invoked via the symlink.
+        assert.doesNotMatch(combined, /沒有找到任何工具/);
+        assert.match(combined, /clean-branch/);
+    } finally {
+        rmSync(linkDir, { recursive: true, force: true });
     }
 });

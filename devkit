@@ -6,8 +6,14 @@
 # 使用方式: devkit [command] [options]
 # ==========================================
 
-# 腳本基本路徑
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 腳本基本路徑（解析 symlink，使 /usr/local/bin/devkit 等入口能找到真實安裝目錄）
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 TOOLS_DIR="$SCRIPT_DIR"
 PACKAGE_JSON="$SCRIPT_DIR/package.json"
 
