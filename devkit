@@ -57,7 +57,6 @@ show_version() {
 }
 
 # 顯示使用說明
-# 顯示使用說明
 show_help() {
     show_version
     echo ""
