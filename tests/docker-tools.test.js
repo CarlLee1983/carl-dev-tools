@@ -1,0 +1,76 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync, readFileSync, chmodSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+const doctorPath = resolve('bash-tools/docker/doctor.sh');
+const cleanPath = resolve('bash-tools/docker/clean.sh');
+
+/**
+ * 建一支假的 docker binary，依測試情境回應 info/version/compose version/system df/system prune。
+ * 所有呼叫的 "$*" 會 append 到 log 檔，測試讀檔比對。
+ */
+function makeFakeDocker(dir, {
+    infoExit = 0,
+    versionExit = 0,
+    composeExit = 0,
+    dfExit = 0,
+    pruneExit = 0,
+    name = 'docker',
+} = {}) {
+    const logPath = join(dir, `${name}.log`);
+    const binPath = join(dir, name);
+
+    writeFileSync(binPath, `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> ${JSON.stringify(logPath)}
+case "$1" in
+  info) exit ${infoExit} ;;
+  version) exit ${versionExit} ;;
+  compose)
+    case "$2" in
+      version) exit ${composeExit} ;;
+    esac
+    exit 0 ;;
+  system)
+    case "$2" in
+      df) exit ${dfExit} ;;
+      prune) exit ${pruneExit} ;;
+    esac
+    exit 0 ;;
+esac
+exit 0
+`);
+    chmodSync(binPath, 0o755);
+    return { binPath, logPath };
+}
+
+function runScript(scriptPath, { args = [], input = '', fakeOpts = {} } = {}) {
+    const dir = mkdtempSync(join(tmpdir(), 'docker-tool-test-'));
+    const fake = makeFakeDocker(dir, fakeOpts);
+    const result = spawnSync('bash', [scriptPath, ...args], {
+        input,
+        encoding: 'utf8',
+        env: {
+            ...process.env,
+            PATH: `${dir}:${process.env.PATH}`,
+            DEVKIT_DOCKER_BIN: fake.binPath,
+        },
+    });
+    return {
+        ...result,
+        stdout: result.stdout ?? '',
+        stderr: result.stderr ?? '',
+        log: readFileSync(fake.logPath, 'utf8'),
+    };
+}
+
+const runDoctor = (opts) => runScript(doctorPath, opts);
+const runClean = (opts) => runScript(cleanPath, opts);
+
+test('doctor: --help exits 0 without touching docker', () => {
+    const r = spawnSync('bash', [doctorPath, '--help'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, (r.stdout ?? '') + (r.stderr ?? ''));
+    assert.match(r.stdout ?? '', /Docker 健康狀態檢查/);
+});
