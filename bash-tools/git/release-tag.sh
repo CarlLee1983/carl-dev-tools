@@ -24,6 +24,16 @@ NEW_VERSION=""
 AVAILABLE_MAIN_BRANCHES=()
 GIT_BIN="${DEVKIT_GIT_BIN:-git}"
 
+# --- Tag 字串組裝 helper（空 prefix = 純 SemVer 軌道）---
+tag_glob() {
+    local prefix="$1"
+    if [ -z "$prefix" ]; then
+        printf 'v*'
+    else
+        printf '%s/v*' "$prefix"
+    fi
+}
+
 # 顯示使用說明
 show_help() {
     echo -e "${BOLD}Git 智慧版本標籤工具${NC}"

@@ -115,3 +115,15 @@ test('release-tag scaffold: source guard prevents main() from running when sourc
     // 不應該看到 main() 第一行的 banner
     assert.doesNotMatch(r.stdout ?? '', /🏷️/);
 });
+
+test('tag_glob: empty prefix returns v*', () => {
+    const r = runHelper('printf "%s" "$(tag_glob "")"');
+    assert.equal(r.status, 0);
+    assert.equal(r.stdout, 'v*');
+});
+
+test('tag_glob: non-empty prefix returns prefix/v*', () => {
+    const r = runHelper('printf "%s" "$(tag_glob "release")"');
+    assert.equal(r.status, 0);
+    assert.equal(r.stdout, 'release/v*');
+});
