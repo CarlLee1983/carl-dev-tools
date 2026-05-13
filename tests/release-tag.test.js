@@ -211,3 +211,22 @@ test('select_track: zero tags + Y prompts for prefix and creates release/v0.0.1'
     assert.match(out, /是否要加上 prefix？\(y\/N\)/);
     assert.match(out, /將建立第一個標籤：release\/v0\.0\.1/);
 });
+
+test('integration: plain track patch bump runs git tag -a v1.1.2', () => {
+    const r = runReleaseTag({
+        input: '1\n1\n', // 選軌道 1 (無前綴)、patch
+        fakeOpts: { tags: ['v1.1.1'] },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.log, /^tag -a v1\.1\.2 -m Release version 1\.1\.2$/m);
+    assert.doesNotMatch(r.log, /^tag -a \/v/m);
+});
+
+test('integration: prefix track patch bump runs git tag -a release/v1.2.4', () => {
+    const r = runReleaseTag({
+        input: '2\n1\n', // 選軌道 2 (release/)、patch
+        fakeOpts: { tags: ['v1.0.0', 'release/v1.2.3'] },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.log, /^tag -a release\/v1\.2\.4 -m Release version 1\.2\.4$/m);
+});
