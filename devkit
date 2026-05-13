@@ -299,6 +299,7 @@ execute_node_tool() {
     local args="$@"
     
     local node_tool_dir="$TOOLS_DIR/node-tools/$category"
+    local invocation_dir="$(pwd)"
     
     # 檢查 Node.js 和 pnpm
     if ! command -v node &> /dev/null; then
@@ -341,10 +342,10 @@ execute_node_tool() {
     
     # 如果工具名稱與分類相同，直接執行 CLI
     if [ "$tool_name" = "$category" ]; then
-        node src/cli.js $args
+        DEVKIT_ORIGINAL_CWD="${DEVKIT_ORIGINAL_CWD:-$invocation_dir}" DEVKIT_PROJECT_PATH="${DEVKIT_PROJECT_PATH:-$invocation_dir}" node src/cli.js $args
     else
         # 否則傳遞工具名稱作為子命令
-        node src/cli.js "$tool_name" $args
+        DEVKIT_ORIGINAL_CWD="${DEVKIT_ORIGINAL_CWD:-$invocation_dir}" DEVKIT_PROJECT_PATH="${DEVKIT_PROJECT_PATH:-$invocation_dir}" node src/cli.js "$tool_name" $args
     fi
 }
 
