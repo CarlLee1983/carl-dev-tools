@@ -139,3 +139,15 @@ test('format_tag: non-empty prefix returns prefix/v<version>', () => {
     assert.equal(r.status, 0);
     assert.equal(r.stdout, 'release/v1.2.3');
 });
+
+test('parse_tag_version: strips leading v from plain semver tag', () => {
+    const r = runHelper('printf "%s" "$(parse_tag_version "v1.2.3" "")"');
+    assert.equal(r.status, 0);
+    assert.equal(r.stdout, '1.2.3');
+});
+
+test('parse_tag_version: strips prefix/v from prefixed tag', () => {
+    const r = runHelper('printf "%s" "$(parse_tag_version "release/v1.2.3" "release")"');
+    assert.equal(r.status, 0);
+    assert.equal(r.stdout, '1.2.3');
+});

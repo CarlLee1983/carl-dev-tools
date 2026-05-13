@@ -44,6 +44,16 @@ format_tag() {
     fi
 }
 
+parse_tag_version() {
+    local tag="$1"
+    local prefix="$2"
+    if [ -z "$prefix" ]; then
+        printf '%s' "${tag#v}"
+    else
+        printf '%s' "${tag#${prefix}/v}"
+    fi
+}
+
 # 顯示使用說明
 show_help() {
     echo -e "${BOLD}Git 智慧版本標籤工具${NC}"
