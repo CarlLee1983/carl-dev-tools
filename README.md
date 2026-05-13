@@ -24,6 +24,10 @@ DevTools/
 │   ├── clean-branch.sh      # 分支清理工具
 │   ├── sync-all.sh          # 分支同步工具
 │   └── release-tag.sh       # 智慧版本標籤工具
+├── bash-tools/docker/        # Docker 相關工具
+│   ├── README.md            # Docker 工具說明
+│   ├── doctor.sh            # Docker 健康檢查
+│   └── clean.sh             # Docker 保守資源清理
 ├── node-tools/env/           # 環境檔案管理工具
 └── src/utils/                # Node.js 共用工具
 ```
@@ -151,6 +155,38 @@ alias git-tag="~/devkit/bash-tools/git/release-tag.sh"
 git-tag
 ```
 
+### 🐳 Docker 工具 (`docker/`)
+
+針對 Docker daemon 的安全運維工具。第一版只提供 doctor 與 clean 兩支 Bash tool。
+
+#### doctor.sh - Docker 健康狀態檢查
+依序執行 `docker info` / `version` / `compose version` / `system df`，daemon 不可連線時 exit 1。
+
+**使用方式：**
+
+```bash
+./bash-tools/docker/doctor.sh
+```
+
+#### clean.sh - Docker 保守資源清理
+預設透過 `docker system prune --force` 清掉 stopped containers、unused images、unused networks、build cache（**不清 volumes**）。
+
+**主要參數：**
+
+- `--dry-run`：只列指令，不執行 prune
+- `--force`：跳過 y/N 確認
+- `--volumes`：同時清 volumes，**即使 `--force` 也要再輸入 `DELETE_DOCKER_VOLUMES` 片語**
+
+**使用方式：**
+
+```bash
+./bash-tools/docker/clean.sh --dry-run
+./bash-tools/docker/clean.sh --force
+./bash-tools/docker/clean.sh --volumes --force
+```
+
+> ⚠️ 任何含 `--volumes` 的清理都會永久刪除未使用的資料卷；片語錯誤時腳本不會執行任何 prune 指令。
+
 ### 🚀 未來擴展計劃
 
 - **`dev/`** - 開發環境設定、程式碼品質檢查、測試自動化
@@ -250,6 +286,7 @@ DevKit 支援自動 Node.js 版本切換，確保工具在正確版本下運行�
 - **互動確認：** 顯示將要刪除的分支清單並要求確認
 - **網路檢查：** 自動檢測網路狀態，離線時跳過遠端操作
 - **錯誤處理：** 完整的錯誤捕獲和友善的錯誤訊息
+- **Docker 清理雙重確認：** `clean.sh --volumes` 一律需要輸入 `DELETE_DOCKER_VOLUMES` 片語，否則不執行任何 prune
 
 ## 📋 使用範例
 
