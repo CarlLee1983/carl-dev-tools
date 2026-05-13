@@ -74,3 +74,10 @@ test('doctor: --help exits 0 without touching docker', () => {
     assert.equal(r.status, 0, (r.stdout ?? '') + (r.stderr ?? ''));
     assert.match(r.stdout ?? '', /Docker 健康狀態檢查/);
 });
+
+test('doctor: calls info, version, compose version, system df in order', () => {
+    const r = runDoctor({ fakeOpts: {} });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const lines = r.log.split('\n').filter(Boolean);
+    assert.deepEqual(lines, ['info', 'version', 'compose version', 'system df']);
+});

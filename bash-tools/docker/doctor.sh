@@ -41,8 +41,20 @@ show_help() {
 
 main() {
     echo -e "${BOLD}🐳 Docker 健康檢查${NC}"
-    # 真正的檢查在後續 task 補上
-    echo -e "${YELLOW}（skeleton：尚未實作檢查邏輯）${NC}"
+
+    echo -e "\n${BLUE}🔍 docker info（daemon 連線）${NC}"
+    "$DOCKER_BIN" info
+
+    echo -e "\n${BLUE}🔍 docker version${NC}"
+    "$DOCKER_BIN" version
+
+    echo -e "\n${BLUE}🔍 docker compose version${NC}"
+    "$DOCKER_BIN" compose version
+
+    echo -e "\n${BLUE}🔍 docker system df${NC}"
+    "$DOCKER_BIN" system df
+
+    echo -e "\n${GREEN}✅ Docker 健康檢查完成${NC}"
 }
 
 # 僅在被直接執行時跑 CLI；被 source 時保留函式供測試使用
