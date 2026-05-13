@@ -35,10 +35,17 @@ pnpm format                    # prettier --write node-tools/*/src/**/*.js
 ./devkit env:env init|create <name>|switch <name>|list|current|diff <a> [b]|backup|restore <name>|clean
 
 # Global Installation
-./install.sh --alias           # Add shell alias (recommended, most stable)
-./install.sh --user            # Symlink to ~/.local/bin
-./install.sh --system          # Symlink to /usr/local/bin (requires sudo)
+curl -fsSL https://raw.githubusercontent.com/CarlLee1983/carl-dev-tools/main/bootstrap.sh | bash
+./install.sh --alias           # Local: add shell alias (recommended, most stable)
+./install.sh --user            # Local: symlink to ~/.local/bin
+./install.sh --system          # Local: symlink to /usr/local/bin (requires sudo)
+./install.sh --user --force --non-interactive   # Non-interactive (bootstrap internal use)
 ./install.sh --uninstall
+
+# Lifecycle subcommands (after bootstrap install)
+devkit --update                # git pull --ff-only inside $SCRIPT_DIR
+devkit --doctor                # health check; exit 1 if any 錯誤
+devkit --uninstall             # remove symlinks + aliases (does not delete $SCRIPT_DIR)
 
 # Run unit tests (defined as node --test in env-manager)
 cd node-tools/env && pnpm test
