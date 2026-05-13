@@ -1,6 +1,3 @@
-import { spawn } from 'child_process';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 import { Logger } from './logger.js';
 import { PlatformUtils } from './platform.js';
 import { FileUtils } from './file.js';

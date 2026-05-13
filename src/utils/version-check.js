@@ -1,5 +1,7 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { Logger } from './logger.js';
-import semver from 'semver';
 
 export class VersionChecker {
     /**
@@ -7,9 +9,9 @@ export class VersionChecker {
      */
     static checkNodeVersion() {
         const currentVersion = process.version;
-        const requiredVersion = '>=18.0.0 <23.0.0';
+        const requiredVersion = '>=18.0.0 <24.0.0';
         
-        if (!semver.satisfies(currentVersion, requiredVersion)) {
+        if (!this.satisfiesNodeRange(currentVersion, requiredVersion)) {
             Logger.error(`Node.js 版本不相容！`);
             Logger.error(`當前版本: ${currentVersion}`);
             Logger.error(`需要版本: ${requiredVersion}`);
@@ -21,13 +23,75 @@ export class VersionChecker {
         return true;
     }
 
+
+    /**
+     * 檢查版本是否符合目前支援的 Node.js 範圍
+     */
+    static satisfiesNodeRange(version, range) {
+        const parsed = this.parseVersion(version);
+        if (!parsed) {
+            return false;
+        }
+
+        if (range === '>=18.0.0 <24.0.0') {
+            return this.compareVersions(parsed, [18, 0, 0]) >= 0
+                && this.compareVersions(parsed, [24, 0, 0]) < 0;
+        }
+
+        return false;
+    }
+
+    /**
+     * 比較套件版本是否大於或等於指定版本
+     */
+    static isGreaterOrEqual(version, minimumVersion) {
+        const parsedVersion = this.parseVersion(version);
+        const parsedMinimum = this.parseVersion(minimumVersion);
+
+        if (!parsedVersion || !parsedMinimum) {
+            return false;
+        }
+
+        return this.compareVersions(parsedVersion, parsedMinimum) >= 0;
+    }
+
+    /**
+     * 從版本字串取出 major/minor/patch
+     */
+    static parseVersion(version) {
+        const match = String(version).match(/(\d+)\.(\d+)\.(\d+)/);
+
+        if (!match) {
+            return null;
+        }
+
+        return match.slice(1).map(Number);
+    }
+
+    /**
+     * 比較兩個 semver-like 版本陣列
+     */
+    static compareVersions(a, b) {
+        for (let i = 0; i < 3; i++) {
+            if (a[i] > b[i]) {
+                return 1;
+            }
+            if (a[i] < b[i]) {
+                return -1;
+            }
+        }
+
+        return 0;
+    }
+
     /**
      * 檢查套件相容性
      */
     static async checkDependencies() {
         try {
-            const packageJson = await import('../../package.json', { assert: { type: 'json' } });
-            const dependencies = packageJson.default.dependencies;
+            const packageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../package.json');
+            const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+            const dependencies = packageJson.dependencies || {};
             
             const warnings = [];
             
@@ -40,7 +104,7 @@ export class VersionChecker {
             for (const [pkg, info] of Object.entries(riskPackages)) {
                 if (dependencies[pkg]) {
                     const installedVersion = dependencies[pkg];
-                    if (semver.gte(semver.coerce(installedVersion.replace('^', '')), info.maxVersion)) {
+                    if (this.isGreaterOrEqual(installedVersion, info.maxVersion)) {
                         warnings.push(`${pkg}: ${info.reason}`);
                     }
                 }
@@ -120,4 +184,9 @@ export class VersionChecker {
         
         return allPassed;
     }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+    const passed = await VersionChecker.performFullCheck();
+    process.exit(passed ? 0 : 1);
 }
