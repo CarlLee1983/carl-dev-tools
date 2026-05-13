@@ -92,3 +92,10 @@ test('doctor: exits 1 when docker info fails', () => {
     assert.doesNotMatch(r.log, /^compose version$/m);
     assert.doesNotMatch(r.log, /^system df$/m);
 });
+
+test('clean: --help exits 0 without touching docker', () => {
+    const r = spawnSync('bash', [cleanPath, '--help'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, (r.stdout ?? '') + (r.stderr ?? ''));
+    assert.match(r.stdout ?? '', /Docker 保守資源清理/);
+    assert.match(r.stdout ?? '', /DELETE_DOCKER_VOLUMES/);
+});
