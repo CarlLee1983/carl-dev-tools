@@ -20,6 +20,24 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# 將字串首字母轉為大寫（可攜帶式，不依賴 GNU sed \U）
+title_case() {
+    local word="$1"
+    if [ -z "$word" ]; then
+        printf ''
+        return
+    fi
+    local first rest
+    first=$(printf '%s' "${word:0:1}" | tr '[:lower:]' '[:upper:]')
+    rest="${word:1}"
+    printf '%s%s' "$first" "$rest"
+}
+
+# 統一錯誤輸出：紅色 + 「錯誤：」前綴 + stderr
+print_error() {
+    echo -e "${RED}錯誤：$1${NC}" >&2
+}
+
 # 從 package.json 讀取版本號
 get_version() {
     if [ -f "$PACKAGE_JSON" ]; then
@@ -42,10 +60,10 @@ show_version() {
 show_help() {
     show_version
     echo ""
-    echo -e "${CYAN}使用方式：${NC}"
+    echo -e "${CYAN}使用方式${NC}"
     echo "  devkit [command] [options]"
     echo ""
-    echo -e "${CYAN}命令：${NC}"
+    echo -e "${CYAN}命令${NC}"
     echo "  list                     顯示所有可用工具"
     echo "  <category>               顯示特定分類的工具"
     echo "  <category>:<tool>        執行指定工具"
@@ -53,11 +71,11 @@ show_help() {
     echo "  --help, -h               顯示此說明"
     echo "  --version, -v            顯示版本資訊"
     echo ""
-    echo -e "${CYAN}範例：${NC}"
-    echo "  devkit                   # 顯示所有工具"
-    echo "  devkit git               # 顯示 git 工具"
-    echo "  devkit git:release-tag   # 執行版本標籤工具"
-    echo "  devkit -i                # 互動式選單"
+    echo -e "${CYAN}範例${NC}"
+    echo "  devkit                   顯示所有工具"
+    echo "  devkit git               顯示 git 工具"
+    echo "  devkit git:release-tag   執行版本標籤工具"
+    echo "  devkit -i                互動式選單"
 }
 
 # 獲取所有分類
@@ -140,85 +158,99 @@ get_category_tools() {
 
 # 顯示所有工具清單
 show_all_tools() {
-    echo -e "${BOLD}🛠️  Development Toolkit${NC}"
+    echo -e "${BOLD}DevKit v${VERSION}${NC}"
     echo ""
-    
+
     local categories=($(get_categories))
-    
+
     if [ ${#categories[@]} -eq 0 ]; then
-        echo -e "${YELLOW}⚠️  沒有找到任何工具${NC}"
-        echo -e "${CYAN}💡 請確認目錄結構完整：需要 bash-tools/ 和 node-tools/ 子目錄${NC}"
+        echo -e "${YELLOW}沒有找到任何工具${NC}"
+        echo "請確認目錄結構完整：需要 bash-tools/ 和 node-tools/ 子目錄"
         return
     fi
-    
-    echo -e "${CYAN}📂 可用分類：${NC}"
+
+    echo -e "${CYAN}分類${NC}"
     for category in "${categories[@]}"; do
-        local tool_count=$(get_category_tools "$category" | wc -l)
-        local category_display=$(echo "$category" | sed 's/./\U&/')
-        echo "  $category     - $category_display 相關工具 ($tool_count 個工具)"
+        local tool_count
+        tool_count=$(get_category_tools "$category" | wc -l | tr -d '[:space:]')
+        local category_display
+        category_display=$(title_case "$category")
+        printf "  %-8s%s 相關工具 (%s)\n" "$category" "$category_display" "$tool_count"
     done
-    
+
     echo ""
-    echo -e "${CYAN}🔧 所有工具：${NC}"
-    
+    echo -e "${CYAN}工具${NC}"
     for category in "${categories[@]}"; do
-        local category_display=$(echo "$category" | sed 's/./\U&/')
-        echo -e "${BOLD}  $category_display:${NC}"
-        
+        local category_display
+        category_display=$(title_case "$category")
+        echo -e "${BOLD}  $category_display${NC}"
         get_category_tools "$category" | while IFS='|' read -r tool_name script_path description; do
-            echo "    $tool_name  - $description"
+            printf "    %-16s%s\n" "$tool_name" "$description"
         done
         echo ""
     done
-    
-    echo -e "${CYAN}💡 使用方式：${NC}"
-    echo "  devkit <category>                # 顯示分類工具"
-    echo "  devkit <category>:<tool>         # 執行指定工具"
-    echo "  devkit --help <category>:<tool>  # 顯示工具說明"
+
+    echo -e "${CYAN}使用方式${NC}"
+    echo "  devkit <category>          顯示分類工具"
+    echo "  devkit <category>:<tool>   執行指定工具"
+    echo "  devkit --help              顯示完整說明"
 }
 
 # 顯示特定分類的工具
 show_category_tools() {
     local category="$1"
-    
+
     local categories=($(get_categories))
     local category_exists=false
-    
+
     for cat in "${categories[@]}"; do
         if [ "$cat" = "$category" ]; then
             category_exists=true
             break
         fi
     done
-    
+
     if [ "$category_exists" = false ]; then
-        echo -e "${RED}❌ 分類 '$category' 不存在${NC}"
-        echo ""
-        echo -e "${CYAN}可用分類：${NC}"
-        for cat in "${categories[@]}"; do
-            echo "  $cat"
-        done
+        print_error "分類 '$category' 不存在"
+        {
+            echo ""
+            echo "可用分類"
+            for cat in "${categories[@]}"; do
+                echo "  $cat"
+            done
+        } >&2
         return 1
     fi
-    
-    local category_display=$(echo "$category" | sed 's/./\U&/')
-    echo -e "${BOLD}🔧 $category_display 工具：${NC}"
+
+    local category_display
+    category_display=$(title_case "$category")
+    echo -e "${BOLD}${category_display} 工具${NC}"
     echo ""
-    
-    local tools=($(get_category_tools "$category"))
-    
-    if [ ${#tools[@]} -eq 0 ]; then
-        echo -e "${YELLOW}⚠️  該分類下沒有可用工具${NC}"
+
+    local has_tools=false
+    while IFS='|' read -r tool_name script_path description; do
+        has_tools=true
+        printf "  %-16s%s\n" "$tool_name" "$description"
+    done < <(get_category_tools "$category")
+
+    if [ "$has_tools" = false ]; then
+        echo -e "${YELLOW}該分類下沒有可用工具${NC}"
         return
     fi
-    
-    get_category_tools "$category" | while IFS='|' read -r tool_name script_path description; do
-        echo "  $tool_name  - $description"
-    done
-    
+
     echo ""
-    echo -e "${CYAN}💡 使用方式：${NC}"
-    echo "  devkit ${category}:<tool>  # 執行指定工具"
+    echo -e "${CYAN}使用方式${NC}"
+    echo "  devkit ${category}:<tool>   執行指定工具"
+}
+
+# 判斷分類是否存在（給 execute_tool / show_category_tools 共用）
+category_exists() {
+    local target="$1"
+    local cat
+    for cat in $(get_categories); do
+        [ "$cat" = "$target" ] && return 0
+    done
+    return 1
 }
 
 # 執行指定工具
@@ -226,51 +258,61 @@ execute_tool() {
     local tool_spec="$1"
     shift
     local args="$@"
-    
-    # 解析 category:tool 格式
+
     if [[ "$tool_spec" != *":"* ]]; then
-        echo -e "${RED}❌ 工具格式錯誤，應為 category:tool${NC}"
+        print_error "工具格式錯誤，應為 category:tool"
         return 1
     fi
-    
+
     local category="${tool_spec%:*}"
     local tool_name="${tool_spec#*:}"
-    
-    # 查找工具
-    local found_tool=$(get_category_tools "$category" | grep "^${tool_name}|")
-    
+
+    if ! category_exists "$category"; then
+        print_error "分類 '$category' 不存在"
+        {
+            echo ""
+            echo "可用分類"
+            for cat in $(get_categories); do
+                echo "  $cat"
+            done
+        } >&2
+        return 1
+    fi
+
+    local found_tool
+    found_tool=$(get_category_tools "$category" | grep "^${tool_name}|")
+
     if [ -z "$found_tool" ]; then
-        echo -e "${RED}❌ 工具 '$tool_spec' 不存在${NC}"
-        echo ""
-        echo -e "${CYAN}該分類下的可用工具：${NC}"
-        get_category_tools "$category" | while IFS='|' read -r name path desc; do
-            echo "  devkit ${category}:${name}"
-        done
+        print_error "工具 '$tool_spec' 不存在"
+        {
+            echo ""
+            echo "${category} 可用工具"
+            get_category_tools "$category" | while IFS='|' read -r name path desc; do
+                echo "  devkit ${category}:${name}"
+            done
+        } >&2
         return 1
     fi
-    
-    local script_path=$(echo "$found_tool" | cut -d'|' -f2)
-    local description=$(echo "$found_tool" | cut -d'|' -f3)
-    
-    echo -e "${BLUE}🚀 執行工具：$tool_spec${NC}"
-    echo -e "${CYAN}描述：$description${NC}"
+
+    local script_path
+    local description
+    script_path=$(echo "$found_tool" | cut -d'|' -f2)
+    description=$(echo "$found_tool" | cut -d'|' -f3)
+
+    echo -e "${BLUE}執行：${tool_spec}${NC} — ${description}"
     echo ""
-    
-    # 檢查腳本是否存在
+
     if [ ! -f "$script_path" ]; then
-        echo -e "${RED}❌ 腳本檔案不存在：$script_path${NC}"
+        print_error "腳本檔案不存在：$script_path"
         return 1
     fi
-    
-    # 判斷是 Bash 工具還是 Node.js 工具
+
     if [[ "$script_path" == *"/bash-tools/"* ]]; then
-        # Bash 工具
         execute_bash_tool "$script_path" $args
     elif [[ "$script_path" == *"/node-tools/"* ]]; then
-        # Node.js 工具
         execute_node_tool "$category" "$tool_name" $args
     else
-        echo -e "${RED}❌ 無法識別工具類型：$script_path${NC}"
+        print_error "無法識別工具類型：$script_path"
         return 1
     fi
 }
@@ -283,7 +325,7 @@ execute_bash_tool() {
     
     # 檢查腳本是否可執行
     if [ ! -x "$script_path" ]; then
-        echo -e "${YELLOW}⚠️  設定腳本執行權限...${NC}"
+        echo -e "${YELLOW}提示：設定腳本執行權限...${NC}"
         chmod +x "$script_path"
     fi
     
@@ -303,7 +345,7 @@ execute_node_tool() {
     
     # 檢查 Node.js 和 pnpm
     if ! command -v node &> /dev/null; then
-        echo -e "${RED}❌ 需要 Node.js 18+ 才能執行此工具${NC}"
+        print_error "需要 Node.js 18+ 才能執行此工具"
         return 1
     fi
     
@@ -314,26 +356,26 @@ execute_node_tool() {
     
     # 檢查最低版本
     if [[ "$(printf '%s\n' "$min_version" "$node_version" | sort -V | head -n1)" != "$min_version" ]]; then
-        echo -e "${RED}❌ 需要 Node.js $min_version 或更高版本，當前版本: $node_version${NC}"
+        print_error "需要 Node.js $min_version 或更高版本，當前版本: $node_version"
         return 1
     fi
     
     # 檢查最高版本（警告）
     if [[ "$(printf '%s\n' "$max_version" "$node_version" | sort -V | head -n1)" != "$node_version" ]]; then
-        echo -e "${YELLOW}⚠️  Node.js 版本 $node_version 可能未經完整測試${NC}"
-        echo -e "${CYAN}💡 建議使用 Node.js 18.x、20.x 或 22.x LTS 版本${NC}"
-        echo -e "${CYAN}💡 如遇到問題，請參考 scripts/UPGRADE.md${NC}"
+        echo -e "${YELLOW}提示：Node.js 版本 $node_version 可能未經完整測試${NC}"
+        echo -e "${CYAN}建議使用 Node.js 18.x、20.x 或 22.x LTS 版本${NC}"
+        echo -e "${CYAN}如遇問題，請參考 scripts/UPGRADE.md${NC}"
     fi
     
     # 確保根層級依賴已安裝
     if [ ! -d "$TOOLS_DIR/node_modules" ]; then
-        echo -e "${YELLOW}⚠️  安裝共用依賴...${NC}"
+        echo -e "${YELLOW}提示：安裝共用依賴...${NC}"
         cd "$TOOLS_DIR" && pnpm install
     fi
     
     # 確保工具依賴已安裝
     if [ -f "$node_tool_dir/package.json" ] && [ ! -d "$node_tool_dir/node_modules" ]; then
-        echo -e "${YELLOW}⚠️  安裝工具依賴...${NC}"
+        echo -e "${YELLOW}提示：安裝工具依賴...${NC}"
         cd "$node_tool_dir" && pnpm install
     fi
     
@@ -353,7 +395,7 @@ execute_node_tool() {
 interactive_menu() {
     while true; do
         clear
-        echo -e "${BOLD}🛠️  Development Toolkit - 互動式選單${NC}"
+        echo -e "${BOLD}DevKit v${VERSION} — 互動式選單${NC}"
         echo ""
         
         local categories=($(get_categories))
@@ -367,7 +409,8 @@ interactive_menu() {
         local i=1
         
         for category in "${categories[@]}"; do
-            local tool_count=$(get_category_tools "$category" | wc -l)
+            local tool_count
+            tool_count=$(get_category_tools "$category" | wc -l | tr -d '[:space:]')
             echo "  $i. $category ($tool_count 個工具)"
             ((i++))
         done
@@ -398,8 +441,9 @@ interactive_category_menu() {
     
     while true; do
         clear
-        local category_display=$(echo "$category" | sed 's/./\U&/')
-        echo -e "${BOLD}🔧 $category_display 工具選單${NC}"
+        local category_display
+        category_display=$(title_case "$category")
+        echo -e "${BOLD}${category_display} 工具選單${NC}"
         echo ""
         
         local tools_info=($(get_category_tools "$category"))
