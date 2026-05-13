@@ -119,3 +119,23 @@ test('clean: --force runs docker system prune --force without --volumes', () => 
     // 任何呼叫都不該帶 --volumes
     assert.doesNotMatch(r.log, /--volumes/);
 });
+
+test('clean: --volumes --force without confirmation phrase aborts without --volumes prune', () => {
+    // stdin 空 → read 拿不到任何字元 → 片語不符
+    const r = runClean({ args: ['--volumes', '--force'], input: '' });
+    assert.notEqual(r.status, 0, '應該以非零 exit code 結束');
+    // 任何呼叫都不該帶 --volumes
+    assert.doesNotMatch(r.log, /--volumes/);
+    // 也不該執行任何 system prune（保守做法）
+    assert.doesNotMatch(r.log, /system prune/);
+});
+
+test('clean: --volumes --force with DELETE_DOCKER_VOLUMES runs system prune --force --volumes', () => {
+    const r = runClean({
+        args: ['--volumes', '--force'],
+        input: 'DELETE_DOCKER_VOLUMES\n',
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const lines = r.log.split('\n').filter(Boolean);
+    assert.equal(lines[lines.length - 1], 'system prune --force --volumes');
+});

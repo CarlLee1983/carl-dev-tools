@@ -61,11 +61,31 @@ check_docker_available() {
     return 0
 }
 
+# 危險路徑：要求輸入固定片語才允許清 volumes
+confirm_volumes_phrase() {
+    echo -e "${RED}⚠️  即將清理 volumes，將永久刪除未使用的資料卷。${NC}"
+    echo -e "${YELLOW}請輸入 ${BOLD}${VOLUMES_CONFIRMATION_PHRASE}${NC}${YELLOW} 以確認：${NC}"
+    local phrase
+    read -r phrase
+    if [[ "$phrase" == "$VOLUMES_CONFIRMATION_PHRASE" ]]; then
+        return 0
+    fi
+    echo -e "${RED}❌ 輸入不符，取消 volumes 清理${NC}"
+    return 1
+}
+
 main() {
     echo -e "${BOLD}🐳 Docker 保守資源清理${NC}"
     check_docker_available || exit 1
 
     local prune_cmd=("system" "prune" "--force")
+
+    if [[ "$WITH_VOLUMES" == "true" ]]; then
+        if ! confirm_volumes_phrase; then
+            exit 1
+        fi
+        prune_cmd+=("--volumes")
+    fi
 
     echo -e "${BLUE}預計指令：${NC}$DOCKER_BIN ${prune_cmd[*]}"
 
