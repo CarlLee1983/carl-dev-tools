@@ -481,6 +481,33 @@ interactive_category_menu() {
 }
 
 
+# 在地更新：git pull --ff-only
+update_devkit() {
+    if [ ! -d "$SCRIPT_DIR/.git" ]; then
+        print_error "DevKit 安裝目錄不是 git 倉庫：$SCRIPT_DIR"
+        {
+            echo "  此情境通常代表手動下載 tarball，請改為遠端重裝："
+            echo "  curl -fsSL https://raw.githubusercontent.com/CarlLee1983/carl-dev-tools/main/bootstrap.sh | bash"
+        } >&2
+        return 1
+    fi
+
+    echo -e "${CYAN}更新 DevKit${NC}"
+    local before after
+    before=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
+    if ! git -C "$SCRIPT_DIR" pull --ff-only; then
+        print_error "更新失敗，請檢查本地是否有未提交變更或衝突"
+        return 1
+    fi
+    after=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)
+
+    if [ "$before" = "$after" ]; then
+        echo "  已是最新版本（$after）"
+    else
+        echo "  $before → $after"
+    fi
+}
+
 # 主程式
 main() {
     # 解析命令列參數
@@ -496,6 +523,9 @@ main() {
             ;;
         "--interactive"|"-i")
             interactive_menu
+            ;;
+        "--update")
+            update_devkit
             ;;
         *":"*)
             # 執行指定工具

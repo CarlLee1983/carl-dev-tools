@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { mkdtempSync, cpSync, chmodSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const devkitPath = resolve('devkit');
 
@@ -92,4 +94,22 @@ test('devkit <unknown-category>:<tool> routes to a category-not-exist error', ()
     assert.notEqual(r.status, 0, r.combined);
     assert.match(r.combined, /錯誤：分類 'definitely-not-a-category' 不存在/);
     assert.match(r.combined, /^可用分類$/m);
+});
+
+test('devkit --update outside a git work tree exits non-zero with bootstrap hint', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'devkit-non-git-'));
+    try {
+        const devkitCopy = join(tmpDir, 'devkit');
+        cpSync(devkitPath, devkitCopy);
+        chmodSync(devkitCopy, 0o755);
+
+        const result = spawnSync('bash', [devkitCopy, '--update'], { encoding: 'utf8' });
+        const combined = stripAnsi((result.stdout ?? '') + (result.stderr ?? ''));
+
+        assert.notEqual(result.status, 0, combined);
+        assert.match(combined, /錯誤：DevKit 安裝目錄不是 git 倉庫/);
+        assert.match(combined, /bootstrap\.sh \| bash/);
+    } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+    }
 });
