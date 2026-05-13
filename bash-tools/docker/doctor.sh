@@ -43,7 +43,10 @@ main() {
     echo -e "${BOLD}🐳 Docker 健康檢查${NC}"
 
     echo -e "\n${BLUE}🔍 docker info（daemon 連線）${NC}"
-    "$DOCKER_BIN" info
+    if ! "$DOCKER_BIN" info; then
+        echo -e "${RED}❌ docker info 失敗，daemon 無法連線${NC}"
+        exit 1
+    fi
 
     echo -e "\n${BLUE}🔍 docker version${NC}"
     "$DOCKER_BIN" version

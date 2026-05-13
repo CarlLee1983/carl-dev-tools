@@ -81,3 +81,14 @@ test('doctor: calls info, version, compose version, system df in order', () => {
     const lines = r.log.split('\n').filter(Boolean);
     assert.deepEqual(lines, ['info', 'version', 'compose version', 'system df']);
 });
+
+test('doctor: exits 1 when docker info fails', () => {
+    const r = runDoctor({ fakeOpts: { infoExit: 1 } });
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    // info 仍會被呼叫一次
+    assert.match(r.log, /^info$/m);
+    // 但不應該再呼叫 version / compose / df
+    assert.doesNotMatch(r.log, /^version$/m);
+    assert.doesNotMatch(r.log, /^compose version$/m);
+    assert.doesNotMatch(r.log, /^system df$/m);
+});
