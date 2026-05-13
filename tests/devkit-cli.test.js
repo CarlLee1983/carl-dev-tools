@@ -54,3 +54,15 @@ test('devkit default output uses the new section structure', () => {
     assert.match(r.combined, /release-tag/);
     assert.match(r.combined, /sync-all/);
 });
+
+test('devkit <category> shows a clean category view with usage hint', () => {
+    const r = runDevkit(['git']);
+    assert.equal(r.status, 0, r.combined);
+    assert.doesNotMatch(r.combined, /Ugit/);
+    assert.match(r.combined, /Git 工具/);
+    assert.match(r.combined, /clean-branch/);
+    assert.match(r.combined, /release-tag/);
+    assert.match(r.combined, /sync-all/);
+    assert.match(r.combined, /^使用方式$/m);
+    assert.match(r.combined, /devkit git:<tool>/);
+});

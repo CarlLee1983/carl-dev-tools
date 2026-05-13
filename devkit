@@ -199,46 +199,48 @@ show_all_tools() {
 # 顯示特定分類的工具
 show_category_tools() {
     local category="$1"
-    
+
     local categories=($(get_categories))
     local category_exists=false
-    
+
     for cat in "${categories[@]}"; do
         if [ "$cat" = "$category" ]; then
             category_exists=true
             break
         fi
     done
-    
+
     if [ "$category_exists" = false ]; then
-        echo -e "${RED}❌ 分類 '$category' 不存在${NC}"
-        echo ""
-        echo -e "${CYAN}可用分類：${NC}"
-        for cat in "${categories[@]}"; do
-            echo "  $cat"
-        done
+        print_error "分類 '$category' 不存在"
+        {
+            echo ""
+            echo "可用分類"
+            for cat in "${categories[@]}"; do
+                echo "  $cat"
+            done
+        } >&2
         return 1
     fi
-    
+
     local category_display
     category_display=$(title_case "$category")
-    echo -e "${BOLD}🔧 $category_display 工具：${NC}"
+    echo -e "${BOLD}${category_display} 工具${NC}"
     echo ""
-    
-    local tools=($(get_category_tools "$category"))
-    
-    if [ ${#tools[@]} -eq 0 ]; then
-        echo -e "${YELLOW}⚠️  該分類下沒有可用工具${NC}"
+
+    local has_tools=false
+    while IFS='|' read -r tool_name script_path description; do
+        has_tools=true
+        printf "  %-16s%s\n" "$tool_name" "$description"
+    done < <(get_category_tools "$category")
+
+    if [ "$has_tools" = false ]; then
+        echo -e "${YELLOW}該分類下沒有可用工具${NC}"
         return
     fi
-    
-    get_category_tools "$category" | while IFS='|' read -r tool_name script_path description; do
-        echo "  $tool_name  - $description"
-    done
-    
+
     echo ""
-    echo -e "${CYAN}💡 使用方式：${NC}"
-    echo "  devkit ${category}:<tool>  # 執行指定工具"
+    echo -e "${CYAN}使用方式${NC}"
+    echo "  devkit ${category}:<tool>   執行指定工具"
 }
 
 # 執行指定工具
