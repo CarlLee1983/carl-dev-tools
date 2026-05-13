@@ -610,6 +610,45 @@ doctor_devkit() {
     return 0
 }
 
+# 反向安裝：移除 symlink + alias，不刪 $SCRIPT_DIR
+uninstall_devkit() {
+    echo -e "${CYAN}移除 DevKit${NC}"
+
+    local removed=()
+    for target in "/usr/local/bin/devkit" "$HOME/.local/bin/devkit"; do
+        if [ -L "$target" ] && [ "$(readlink "$target")" = "$SCRIPT_DIR/devkit" ]; then
+            local prefix=""
+            [[ "$target" == /usr/local/* ]] && prefix="sudo "
+            if ${prefix}rm -f "$target"; then
+                removed+=("$target")
+            fi
+        fi
+    done
+
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        if [ -f "$rc" ] && grep -q "alias devkit=" "$rc"; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' '/alias devkit=/d' "$rc"
+            else
+                sed -i '/alias devkit=/d' "$rc"
+            fi
+            removed+=("$rc:alias devkit")
+        fi
+    done
+
+    if [ ${#removed[@]} -eq 0 ]; then
+        echo "  沒有找到由本安裝建立的 symlink 或別名"
+    else
+        echo "  已移除："
+        printf '    %s\n' "${removed[@]}"
+    fi
+
+    echo ""
+    echo -e "${CYAN}下一步${NC}"
+    echo "  移除安裝目錄："
+    echo "    rm -rf \"$SCRIPT_DIR\""
+}
+
 # 主程式
 main() {
     # 解析命令列參數
@@ -631,6 +670,9 @@ main() {
             ;;
         "--doctor")
             doctor_devkit
+            ;;
+        "--uninstall")
+            uninstall_devkit
             ;;
         *":"*)
             # 執行指定工具

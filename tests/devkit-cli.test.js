@@ -133,3 +133,33 @@ test('devkit --doctor exits 1 when required tooling is missing from PATH', () =>
     assert.equal(result.status, 1, combined);
     assert.match(combined, /錯誤/);
 });
+
+test('devkit --uninstall removes the sandbox-HOME symlink and prints rm -rf hint', () => {
+    const home = mkdtempSync(join(tmpdir(), 'devkit-uninstall-'));
+    try {
+        // Seed: install into the sandbox HOME via install.sh.
+        const installResult = spawnSync('bash', [resolve('install.sh'), '--user', '--force', '--non-interactive'], {
+            encoding: 'utf8',
+            env: { ...process.env, HOME: home },
+        });
+        assert.equal(installResult.status, 0, installResult.stdout + installResult.stderr);
+
+        const symlink = join(home, '.local', 'bin', 'devkit');
+        assert.ok(existsSync(symlink), 'precondition: symlink should exist after install');
+
+        // Act: uninstall via dispatcher, sandbox HOME so we don't touch real ~/.zshrc.
+        const uninstallResult = spawnSync('bash', [devkitPath, '--uninstall'], {
+            encoding: 'utf8',
+            env: { ...process.env, HOME: home },
+        });
+        const combined = stripAnsi((uninstallResult.stdout ?? '') + (uninstallResult.stderr ?? ''));
+
+        assert.equal(uninstallResult.status, 0, combined);
+        assert.ok(!existsSync(symlink), `symlink should be removed: ${combined}`);
+        // SCRIPT_DIR not auto-deleted; hint must be printed.
+        assert.match(combined, /rm -rf/);
+        assert.match(combined, /^下一步$/m);
+    } finally {
+        rmSync(home, { recursive: true, force: true });
+    }
+});
