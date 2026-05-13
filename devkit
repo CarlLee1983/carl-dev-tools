@@ -325,7 +325,7 @@ execute_bash_tool() {
     
     # 檢查腳本是否可執行
     if [ ! -x "$script_path" ]; then
-        echo -e "${YELLOW}⚠️  設定腳本執行權限...${NC}"
+        echo -e "${YELLOW}提示：設定腳本執行權限...${NC}"
         chmod +x "$script_path"
     fi
     
@@ -345,7 +345,7 @@ execute_node_tool() {
     
     # 檢查 Node.js 和 pnpm
     if ! command -v node &> /dev/null; then
-        echo -e "${RED}❌ 需要 Node.js 18+ 才能執行此工具${NC}"
+        print_error "需要 Node.js 18+ 才能執行此工具"
         return 1
     fi
     
@@ -356,26 +356,26 @@ execute_node_tool() {
     
     # 檢查最低版本
     if [[ "$(printf '%s\n' "$min_version" "$node_version" | sort -V | head -n1)" != "$min_version" ]]; then
-        echo -e "${RED}❌ 需要 Node.js $min_version 或更高版本，當前版本: $node_version${NC}"
+        print_error "需要 Node.js $min_version 或更高版本，當前版本: $node_version"
         return 1
     fi
     
     # 檢查最高版本（警告）
     if [[ "$(printf '%s\n' "$max_version" "$node_version" | sort -V | head -n1)" != "$node_version" ]]; then
-        echo -e "${YELLOW}⚠️  Node.js 版本 $node_version 可能未經完整測試${NC}"
-        echo -e "${CYAN}💡 建議使用 Node.js 18.x、20.x 或 22.x LTS 版本${NC}"
-        echo -e "${CYAN}💡 如遇到問題，請參考 scripts/UPGRADE.md${NC}"
+        echo -e "${YELLOW}提示：Node.js 版本 $node_version 可能未經完整測試${NC}"
+        echo -e "${CYAN}建議使用 Node.js 18.x、20.x 或 22.x LTS 版本${NC}"
+        echo -e "${CYAN}如遇問題，請參考 scripts/UPGRADE.md${NC}"
     fi
     
     # 確保根層級依賴已安裝
     if [ ! -d "$TOOLS_DIR/node_modules" ]; then
-        echo -e "${YELLOW}⚠️  安裝共用依賴...${NC}"
+        echo -e "${YELLOW}提示：安裝共用依賴...${NC}"
         cd "$TOOLS_DIR" && pnpm install
     fi
     
     # 確保工具依賴已安裝
     if [ -f "$node_tool_dir/package.json" ] && [ ! -d "$node_tool_dir/node_modules" ]; then
-        echo -e "${YELLOW}⚠️  安裝工具依賴...${NC}"
+        echo -e "${YELLOW}提示：安裝工具依賴...${NC}"
         cd "$node_tool_dir" && pnpm install
     fi
     
