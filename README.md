@@ -160,47 +160,60 @@ git-tag
 
 ## 🛠️ 安裝方式
 
-### 方法一：一鍵安裝（最推薦）
+### 方法一：一鍵遠端安裝（最推薦）
+
 ```bash
-# 下載專案到任意位置（不限於 ~/scripts）
-git clone <repository-url> ~/devkit
-cd ~/devkit
-
-# 執行安裝腳本（會引導互動式選擇，預設使用別名方式）
-./install.sh
-
-# 重新載入 shell 設定
-source ~/.zshrc  # 或 source ~/.bashrc
-
-# 測試安裝
-devkit --help
+curl -fsSL https://raw.githubusercontent.com/CarlLee1983/carl-dev-tools/main/bootstrap.sh | bash
 ```
 
-### 方法二：指定安裝方式
+預設安裝到 `~/.devkit`，並在 `~/.local/bin/devkit` 建立 symlink。可用環境變數覆寫：
+
 ```bash
-# 建立別名（推薦 - 最穩定）
-./install.sh --alias
-source ~/.zshrc  # 或 source ~/.bashrc
-
-# 安裝到使用者目錄（使用符號連結）
-./install.sh --user
-
-# 安裝到系統（需要 sudo，使用符號連結）
-./install.sh --system
+DEVKIT_DIR=/tmp/devkit-test \
+  curl -fsSL https://raw.githubusercontent.com/CarlLee1983/carl-dev-tools/main/bootstrap.sh | bash
 ```
 
-### 方法三：手動設定別名
-```bash
-# 加入到 ~/.zshrc 或 ~/.bashrc
-alias devkit="~/你的專案路徑/devkit"
+| 環境變數 | 預設 | 作用 |
+| --- | --- | --- |
+| `DEVKIT_DIR` | `$HOME/.devkit` | 安裝目錄 |
+| `DEVKIT_REF` | `main` | 要 clone 的 git ref |
+| `DEVKIT_REPO` | `https://github.com/CarlLee1983/carl-dev-tools.git` | 來源 repo |
 
-# 重新載入設定
-source ~/.zshrc  # 或 source ~/.bashrc
+### 方法二：先 clone 再執行 install.sh（適合想看原始碼）
+
+```bash
+git clone https://github.com/CarlLee1983/carl-dev-tools.git ~/.devkit
+cd ~/.devkit
+./install.sh              # 互動式選單，預設別名安裝
 ```
 
-**重要提示：** 
-- 推薦使用別名或符號連結方式，確保 devkit 能正確找到所有工具腳本
-- 專案可以安裝在任何位置，不限於 `~/scripts` 目錄
+### 方法三：指定安裝方式
+
+```bash
+./install.sh --alias      # 建立 shell 別名（最穩定）
+./install.sh --user       # symlink 到 ~/.local/bin
+./install.sh --system     # symlink 到 /usr/local/bin（需 sudo）
+./install.sh --user --force --non-interactive   # 全程零互動（bootstrap 內部用）
+```
+
+### 方法四：手動別名（進階）
+
+```bash
+echo 'alias devkit="~/your/path/to/devkit"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+## 🔄 更新／體檢／移除
+
+bootstrap 安裝後，可從任何目錄反向操作：
+
+```bash
+devkit --update      # git pull --ff-only（拒絕 merge，避免本地誤動產生 merge commit）
+devkit --doctor      # 體檢：bash / git / Node.js / pnpm / PATH / symlink
+devkit --uninstall   # 移除 symlink + alias；不代刪安裝目錄（會印 rm -rf 指令）
+```
+
+`devkit --doctor` 的 exit code：含任一「錯誤」→ 1；只有「OK / 警告」→ 0，可串進 CI 健康檢查。
 
 ## ⚙️ 系統需求
 

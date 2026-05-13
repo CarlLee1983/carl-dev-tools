@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { mkdtempSync, cpSync, chmodSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const devkitPath = resolve('devkit');
 
@@ -92,4 +94,72 @@ test('devkit <unknown-category>:<tool> routes to a category-not-exist error', ()
     assert.notEqual(r.status, 0, r.combined);
     assert.match(r.combined, /錯誤：分類 'definitely-not-a-category' 不存在/);
     assert.match(r.combined, /^可用分類$/m);
+});
+
+test('devkit --update outside a git work tree exits non-zero with bootstrap hint', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'devkit-non-git-'));
+    try {
+        const devkitCopy = join(tmpDir, 'devkit');
+        cpSync(devkitPath, devkitCopy);
+        chmodSync(devkitCopy, 0o755);
+
+        const result = spawnSync('bash', [devkitCopy, '--update'], { encoding: 'utf8' });
+        const combined = stripAnsi((result.stdout ?? '') + (result.stderr ?? ''));
+
+        assert.notEqual(result.status, 0, combined);
+        assert.match(combined, /錯誤：DevKit 安裝目錄不是 git 倉庫/);
+        assert.match(combined, /bootstrap\.sh \| bash/);
+    } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+    }
+});
+
+test('devkit --doctor prints the health report sections without emoji', () => {
+    const r = runDevkit(['--doctor']);
+    assert.match(r.combined, /^DevKit 體檢$/m);
+    assert.match(r.combined, /^bash$/m);
+    assert.match(r.combined, /^Node\.js$/m);
+    assert.match(r.combined, /^PATH$/m);
+    assert.match(r.combined, /^結果$/m);
+    assert.doesNotMatch(r.combined, /❌|✅|⚠️/);
+});
+
+test('devkit --doctor exits 1 when required tooling is missing from PATH', () => {
+    const result = spawnSync('bash', [devkitPath, '--doctor'], {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: '/usr/bin:/bin' },
+    });
+    const combined = stripAnsi((result.stdout ?? '') + (result.stderr ?? ''));
+    assert.equal(result.status, 1, combined);
+    assert.match(combined, /錯誤/);
+});
+
+test('devkit --uninstall removes the sandbox-HOME symlink and prints rm -rf hint', () => {
+    const home = mkdtempSync(join(tmpdir(), 'devkit-uninstall-'));
+    try {
+        // Seed: install into the sandbox HOME via install.sh.
+        const installResult = spawnSync('bash', [resolve('install.sh'), '--user', '--force', '--non-interactive'], {
+            encoding: 'utf8',
+            env: { ...process.env, HOME: home },
+        });
+        assert.equal(installResult.status, 0, installResult.stdout + installResult.stderr);
+
+        const symlink = join(home, '.local', 'bin', 'devkit');
+        assert.ok(existsSync(symlink), 'precondition: symlink should exist after install');
+
+        // Act: uninstall via dispatcher, sandbox HOME so we don't touch real ~/.zshrc.
+        const uninstallResult = spawnSync('bash', [devkitPath, '--uninstall'], {
+            encoding: 'utf8',
+            env: { ...process.env, HOME: home },
+        });
+        const combined = stripAnsi((uninstallResult.stdout ?? '') + (uninstallResult.stderr ?? ''));
+
+        assert.equal(uninstallResult.status, 0, combined);
+        assert.ok(!existsSync(symlink), `symlink should be removed: ${combined}`);
+        // SCRIPT_DIR not auto-deleted; hint must be printed.
+        assert.match(combined, /rm -rf/);
+        assert.match(combined, /^下一步$/m);
+    } finally {
+        rmSync(home, { recursive: true, force: true });
+    }
 });

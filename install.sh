@@ -18,105 +18,99 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# 統一錯誤輸出：紅色 + 「錯誤：」前綴 + stderr
+print_error() {
+    echo -e "${RED}錯誤：$1${NC}" >&2
+}
+
 # 安裝選項
 INSTALL_METHOD=""
 FORCE_INSTALL=false
+NON_INTERACTIVE=false
 UNINSTALL=false
 
 # 顯示使用說明
 show_help() {
     echo -e "${BOLD}DevKit 安裝腳本${NC}"
     echo ""
-    echo -e "${CYAN}功能：${NC}"
     echo "  將 devkit 安裝到系統，支援全域呼叫"
     echo ""
-    echo -e "${CYAN}使用方式：${NC}"
+    echo -e "${CYAN}使用方式${NC}"
     echo "  $0 [選項]"
     echo ""
-    echo -e "${CYAN}選項：${NC}"
-    echo "  --system          安裝到系統目錄 (/usr/local/bin)"
-    echo "  --user            安裝到使用者目錄 (~/.local/bin)"
-    echo "  --alias           建立 shell 別名"
-    echo "  --force           強制安裝（覆蓋現有檔案）"
-    echo "  --uninstall       移除安裝"
-    echo "  --help            顯示此說明"
+    echo -e "${CYAN}選項${NC}"
+    echo "  --system               安裝到系統目錄 (/usr/local/bin)"
+    echo "  --user                 安裝到使用者目錄 (~/.local/bin)"
+    echo "  --alias                建立 shell 別名"
+    echo "  --force                強制安裝（覆蓋現有檔案）"
+    echo "  --non-interactive      跳過所有確認；隱含 --force"
+    echo "  --uninstall            移除安裝"
+    echo "  --help                 顯示此說明"
     echo ""
-    echo -e "${CYAN}範例：${NC}"
-    echo "  $0 --system       # 安裝到系統目錄"
-    echo "  $0 --user         # 安裝到使用者目錄"
-    echo "  $0 --alias        # 建立別名"
-    echo "  $0 --uninstall    # 移除安裝"
+    echo -e "${CYAN}範例${NC}"
+    echo "  $0 --system            安裝到系統目錄"
+    echo "  $0 --user              安裝到使用者目錄"
+    echo "  $0 --alias             建立別名"
+    echo "  $0 --uninstall         移除安裝"
 }
 
 # 檢查系統環境
 check_environment() {
-    echo -e "${BLUE}🔍 檢查系統環境...${NC}"
-    
-    # 檢查作業系統
+    echo -e "${CYAN}檢查系統環境${NC}"
+
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "${GREEN}✅ 偵測到 macOS${NC}"
+        echo "  macOS"
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        echo -e "${GREEN}✅ 偵測到 Linux${NC}"
+        echo "  Linux"
     else
-        echo -e "${YELLOW}⚠️  未知作業系統：$OSTYPE${NC}"
-        echo -e "${CYAN}💡 將嘗試使用通用安裝方式${NC}"
+        echo "  未知作業系統：$OSTYPE（嘗試通用安裝）"
     fi
-    
-    # 檢查 devkit 腳本是否存在
+
     if [ ! -f "$DEVKIT_SCRIPT" ]; then
-        echo -e "${RED}❌ 找不到 devkit 腳本：$DEVKIT_SCRIPT${NC}"
+        print_error "找不到 devkit 腳本：$DEVKIT_SCRIPT"
         exit 1
     fi
-    
-    # 檢查 devkit 腳本是否可執行
+
     if [ ! -x "$DEVKIT_SCRIPT" ]; then
-        echo -e "${YELLOW}⚠️  設定 devkit 執行權限...${NC}"
+        echo "  提示：設定 devkit 執行權限"
         chmod +x "$DEVKIT_SCRIPT"
     fi
-    
-    echo -e "${GREEN}✅ 環境檢查完成${NC}"
 }
 
 # 系統安裝 (需要 sudo 權限)
 install_system() {
     local target_dir="/usr/local/bin"
     local target_file="$target_dir/devkit"
-    
-    echo -e "${BLUE}🚀 安裝到系統目錄：$target_dir${NC}"
-    
-    # 檢查目錄是否存在
+
+    echo -e "${CYAN}安裝到 $target_dir${NC}"
+
     if [ ! -d "$target_dir" ]; then
-        echo -e "${YELLOW}⚠️  建立目錄：$target_dir${NC}"
+        echo "  提示：建立目錄 $target_dir"
         sudo mkdir -p "$target_dir" || {
-            echo -e "${RED}❌ 無法建立目錄，請檢查權限${NC}"
+            print_error "無法建立目錄：$target_dir"
             return 1
         }
     fi
-    
-    # 檢查是否已存在
+
     if [ -f "$target_file" ] && [ "$FORCE_INSTALL" = false ]; then
-        echo -e "${YELLOW}⚠️  檔案已存在：$target_file${NC}"
-        read -p "是否要覆蓋？(y/N): " -r
+        echo "  檔案已存在：$target_file"
+        read -p "  是否要覆蓋？(y/N): " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}已取消安裝${NC}"
+            echo "  已取消安裝"
             return 1
         fi
     fi
-    
-    # 建立符號連結（而非複製）
+
     if sudo ln -sf "$DEVKIT_SCRIPT" "$target_file"; then
-        echo -e "${GREEN}✅ 成功建立符號連結：$target_file${NC}"
-        
-        # 驗證安裝
+        echo "  symlink $target_file → $DEVKIT_SCRIPT"
         if command -v devkit >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ devkit 已可全域使用${NC}"
+            echo "  devkit 已可全域使用"
         else
-            echo -e "${YELLOW}⚠️  可能需要重新載入 shell 或檢查 PATH 設定${NC}"
+            echo "  提示：可能需要重新載入 shell 或檢查 PATH"
         fi
-        
         return 0
     else
-        echo -e "${RED}❌ 安裝失敗${NC}"
+        print_error "安裝失敗"
         return 1
     fi
 }
@@ -125,178 +119,164 @@ install_system() {
 install_user() {
     local target_dir="$HOME/.local/bin"
     local target_file="$target_dir/devkit"
-    
-    echo -e "${BLUE}🚀 安裝到使用者目錄：$target_dir${NC}"
-    
-    # 建立目錄
+
+    echo -e "${CYAN}安裝到 $target_dir${NC}"
+
     mkdir -p "$target_dir" || {
-        echo -e "${RED}❌ 無法建立目錄：$target_dir${NC}"
+        print_error "無法建立目錄：$target_dir"
         return 1
     }
-    
-    # 檢查是否已存在
+
     if [ -f "$target_file" ] && [ "$FORCE_INSTALL" = false ]; then
-        echo -e "${YELLOW}⚠️  檔案已存在：$target_file${NC}"
-        read -p "是否要覆蓋？(y/N): " -r
+        echo "  檔案已存在：$target_file"
+        read -p "  是否要覆蓋？(y/N): " -r
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}已取消安裝${NC}"
+            echo "  已取消安裝"
             return 1
         fi
     fi
-    
-    # 建立符號連結（而非複製）
-    if ln -sf "$DEVKIT_SCRIPT" "$target_file"; then
-        echo -e "${GREEN}✅ 成功建立符號連結：$target_file${NC}"
-        
-        # 檢查 PATH 設定
-        if [[ ":$PATH:" != *":$target_dir:"* ]]; then
-            echo -e "${YELLOW}⚠️  $target_dir 不在 PATH 中${NC}"
-            echo -e "${CYAN}💡 請將以下內容加入到 ~/.zshrc 或 ~/.bashrc：${NC}"
-            echo "export PATH=\"\$HOME/.local/bin:\$PATH\""
-        else
-            echo -e "${GREEN}✅ devkit 已可全域使用${NC}"
-        fi
-        
-        return 0
-    else
-        echo -e "${RED}❌ 安裝失敗${NC}"
+
+    if ! ln -sf "$DEVKIT_SCRIPT" "$target_file"; then
+        print_error "安裝失敗"
         return 1
     fi
+    echo "  symlink $target_file → $DEVKIT_SCRIPT"
+
+    if [[ ":$PATH:" != *":$target_dir:"* ]]; then
+        local rc="~/.zshrc"
+        [[ "$SHELL" == *"bash"* ]] && rc="~/.bashrc"
+        echo ""
+        echo -e "${CYAN}下一步${NC}"
+        echo "  $target_dir 不在 PATH 中，請執行："
+        echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> $rc"
+        echo "    source $rc"
+    else
+        echo "  devkit 已可全域使用"
+    fi
+
+    return 0
 }
 
 # 建立別名
 install_alias() {
-    echo -e "${BLUE}🚀 建立 shell 別名${NC}"
-    
+    echo -e "${CYAN}建立 shell 別名${NC}"
+
     local shell_rc=""
     local alias_line="alias devkit=\"$DEVKIT_SCRIPT\""
-    
-    # 偵測 shell 類型
+
     if [ -n "$ZSH_VERSION" ] || [[ "$SHELL" == *"zsh"* ]]; then
         shell_rc="$HOME/.zshrc"
-        echo -e "${CYAN}偵測到 Zsh，使用 $shell_rc${NC}"
+        echo "  偵測到 Zsh：$shell_rc"
     elif [ -n "$BASH_VERSION" ] || [[ "$SHELL" == *"bash"* ]]; then
         shell_rc="$HOME/.bashrc"
-        echo -e "${CYAN}偵測到 Bash，使用 $shell_rc${NC}"
+        echo "  偵測到 Bash：$shell_rc"
     else
-        echo -e "${YELLOW}⚠️  無法偵測 shell 類型${NC}"
-        echo -e "${CYAN}請手動將以下內容加入到您的 shell 設定檔：${NC}"
-        echo "$alias_line"
+        echo "  無法偵測 shell 類型；請手動加入："
+        echo "    $alias_line"
         return 0
     fi
-    
-    # 檢查別名是否已存在
+
     if [ -f "$shell_rc" ] && grep -q "alias devkit=" "$shell_rc"; then
         if [ "$FORCE_INSTALL" = false ]; then
-            echo -e "${YELLOW}⚠️  別名已存在於 $shell_rc${NC}"
-            read -p "是否要更新？(y/N): " -r
+            echo "  別名已存在於 $shell_rc"
+            read -p "  是否要更新？(y/N): " -r
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                echo -e "${YELLOW}已取消安裝${NC}"
+                echo "  已取消安裝"
                 return 1
             fi
         fi
-        
-        # 移除舊的別名
+
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' '/alias devkit=/d' "$shell_rc"
         else
             sed -i '/alias devkit=/d' "$shell_rc"
         fi
     fi
-    
-    # 加入新的別名
+
     echo "$alias_line" >> "$shell_rc"
-    echo -e "${GREEN}✅ 別名已加入到：$shell_rc${NC}"
-    echo -e "${CYAN}💡 請執行以下命令重新載入設定：${NC}"
-    echo "source $shell_rc"
-    
+    echo "  別名已加入：$shell_rc"
+    echo ""
+    echo -e "${CYAN}下一步${NC}"
+    echo "  source $shell_rc"
+
     return 0
 }
 
 # 移除安裝
 uninstall() {
-    echo -e "${BLUE}🗑️  移除 devkit 安裝...${NC}"
-    
+    echo -e "${CYAN}移除 DevKit${NC}"
+
     local removed=false
-    
-    # 移除系統安裝
+
     if [ -f "/usr/local/bin/devkit" ]; then
-        echo -e "${YELLOW}移除系統安裝：/usr/local/bin/devkit${NC}"
         if sudo rm -f "/usr/local/bin/devkit"; then
-            echo -e "${GREEN}✅ 已移除系統安裝${NC}"
+            echo "  已移除 /usr/local/bin/devkit"
             removed=true
         else
-            echo -e "${RED}❌ 移除系統安裝失敗${NC}"
+            print_error "移除 /usr/local/bin/devkit 失敗"
         fi
     fi
-    
-    # 移除使用者安裝
+
     if [ -f "$HOME/.local/bin/devkit" ]; then
-        echo -e "${YELLOW}移除使用者安裝：$HOME/.local/bin/devkit${NC}"
         if rm -f "$HOME/.local/bin/devkit"; then
-            echo -e "${GREEN}✅ 已移除使用者安裝${NC}"
+            echo "  已移除 $HOME/.local/bin/devkit"
             removed=true
         else
-            echo -e "${RED}❌ 移除使用者安裝失敗${NC}"
+            print_error "移除 $HOME/.local/bin/devkit 失敗"
         fi
     fi
-    
-    # 移除別名
+
     for rc_file in "$HOME/.zshrc" "$HOME/.bashrc"; do
         if [ -f "$rc_file" ] && grep -q "alias devkit=" "$rc_file"; then
-            echo -e "${YELLOW}移除別名：$rc_file${NC}"
             if [[ "$OSTYPE" == "darwin"* ]]; then
                 sed -i '' '/alias devkit=/d' "$rc_file"
             else
                 sed -i '/alias devkit=/d' "$rc_file"
             fi
-            echo -e "${GREEN}✅ 已移除別名${NC}"
+            echo "  已移除 $rc_file 內的 alias devkit"
             removed=true
         fi
     done
-    
+
     if [ "$removed" = true ]; then
-        echo -e "${GREEN}🎉 DevKit 移除完成${NC}"
-        echo -e "${CYAN}💡 請重新載入 shell 或重新開啟終端${NC}"
+        echo ""
+        echo -e "${BOLD}DevKit 移除完成${NC}"
+        echo -e "${CYAN}下一步${NC}"
+        echo "  重新載入 shell 或重新開啟終端"
     else
-        echo -e "${YELLOW}⚠️  沒有找到已安裝的 devkit${NC}"
+        echo "  沒有找到已安裝的 devkit"
     fi
 }
 
 # 互動式安裝
 interactive_install() {
-    echo -e "${BOLD}🛠️  DevKit 互動式安裝${NC}"
+    if [ "$NON_INTERACTIVE" = true ]; then
+        print_error "--non-interactive 模式需明確指定 --system / --user / --alias"
+        exit 1
+    fi
+
+    echo -e "${BOLD}DevKit 互動式安裝${NC}"
     echo ""
-    echo -e "${CYAN}請選擇安裝方式：${NC}"
-    echo "  1. 建立別名 (推薦 - 最簡單且最穩定)"
-    echo "  2. 使用者安裝 (僅當前使用者可用，使用符號連結)"
-    echo "  3. 系統安裝 (需要 sudo 權限，所有使用者可用，使用符號連結)"
+    echo -e "${CYAN}請選擇安裝方式${NC}"
+    echo "  1. 建立別名（推薦 — 最簡單且最穩定）"
+    echo "  2. 使用者安裝（僅當前使用者可用，符號連結）"
+    echo "  3. 系統安裝（需 sudo，所有使用者可用，符號連結）"
     echo "  4. 取消安裝"
     echo ""
-    echo -e "${YELLOW}💡 提示：建議使用別名方式，確保工具能正確找到所有腳本${NC}"
-    echo ""
-    
-    read -p "請輸入選項 (1-4，預設為 1): " choice
-    
-    # 如果沒有輸入，預設選擇別名
+
+    read -p "請輸入選項 (1-4，預設 1)：" choice
     choice=${choice:-1}
-    
+
     case "$choice" in
-        1)
-            INSTALL_METHOD="alias"
-            ;;
-        2)
-            INSTALL_METHOD="user"
-            ;;
-        3)
-            INSTALL_METHOD="system"
-            ;;
+        1) INSTALL_METHOD="alias" ;;
+        2) INSTALL_METHOD="user" ;;
+        3) INSTALL_METHOD="system" ;;
         4)
-            echo -e "${YELLOW}已取消安裝${NC}"
+            echo "  已取消安裝"
             exit 0
             ;;
         *)
-            echo -e "${RED}❌ 無效選項，使用預設的別名安裝${NC}"
+            echo "  無效選項，使用預設的別名安裝"
             INSTALL_METHOD="alias"
             ;;
     esac
@@ -304,7 +284,6 @@ interactive_install() {
 
 # 主程式
 main() {
-    # 解析命令列參數
     while [[ $# -gt 0 ]]; do
         case $1 in
             --system)
@@ -323,6 +302,11 @@ main() {
                 FORCE_INSTALL=true
                 shift
                 ;;
+            --non-interactive)
+                NON_INTERACTIVE=true
+                FORCE_INSTALL=true
+                shift
+                ;;
             --uninstall)
                 UNINSTALL=true
                 shift
@@ -332,61 +316,52 @@ main() {
                 exit 0
                 ;;
             *)
-                echo -e "${RED}❌ 未知參數：$1${NC}"
-                show_help
+                print_error "未知參數：$1"
+                show_help >&2
                 exit 1
                 ;;
         esac
     done
-    
-    # 檢查環境
+
     check_environment
     echo ""
-    
-    # 處理移除安裝
+
     if [ "$UNINSTALL" = true ]; then
         uninstall
         exit 0
     fi
-    
-    # 如果沒有指定安裝方式，使用互動式安裝
+
     if [ -z "$INSTALL_METHOD" ]; then
         interactive_install
         echo ""
     fi
-    
-    # 執行安裝
+
     case "$INSTALL_METHOD" in
         "system")
-            if install_system; then
+            install_system && {
                 echo ""
-                echo -e "${GREEN}🎉 DevKit 系統安裝完成！${NC}"
-                echo -e "${CYAN}現在您可以在任何地方使用 'devkit' 命令${NC}"
-            fi
+                echo -e "${BOLD}DevKit 安裝完成${NC}"
+                echo "  現在您可以在任何地方使用 devkit"
+            }
             ;;
         "user")
-            if install_user; then
+            install_user && {
                 echo ""
-                echo -e "${GREEN}🎉 DevKit 使用者安裝完成！${NC}"
-                echo -e "${CYAN}現在您可以在任何地方使用 'devkit' 命令${NC}"
-            fi
+                echo -e "${BOLD}DevKit 安裝完成${NC}"
+            }
             ;;
         "alias")
-            if install_alias; then
+            install_alias && {
                 echo ""
-                echo -e "${GREEN}🎉 DevKit 別名安裝完成！${NC}"
-                echo -e "${CYAN}重新載入 shell 後即可使用 'devkit' 命令${NC}"
-            fi
+                echo -e "${BOLD}DevKit 安裝完成${NC}"
+                echo "  重新載入 shell 後即可使用 devkit"
+            }
             ;;
         *)
-            echo -e "${RED}❌ 無效的安裝方式：$INSTALL_METHOD${NC}"
+            print_error "無效的安裝方式：$INSTALL_METHOD"
             exit 1
             ;;
     esac
-    
-    echo ""
-    echo -e "${CYAN}💡 測試安裝：${NC}"
-    echo "devkit --help"
 }
 
 # 執行主程式
