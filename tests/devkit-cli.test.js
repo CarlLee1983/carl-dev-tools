@@ -77,3 +77,19 @@ test('devkit unknown category exits non-zero with a clear error and category lis
     // The error must not leak the old emoji-flagged format
     assert.doesNotMatch(r.combined, /❌/);
 });
+
+test('devkit <existing-category>:<unknown-tool> exits non-zero with available tool list', () => {
+    const r = runDevkit(['git:definitely-not-a-tool']);
+    assert.notEqual(r.status, 0, r.combined);
+    assert.match(r.combined, /錯誤：工具 'git:definitely-not-a-tool' 不存在/);
+    assert.match(r.combined, /git 可用工具/);
+    assert.match(r.combined, /devkit git:clean-branch/);
+    assert.doesNotMatch(r.combined, /❌/);
+});
+
+test('devkit <unknown-category>:<tool> routes to a category-not-exist error', () => {
+    const r = runDevkit(['definitely-not-a-category:whatever']);
+    assert.notEqual(r.status, 0, r.combined);
+    assert.match(r.combined, /錯誤：分類 'definitely-not-a-category' 不存在/);
+    assert.match(r.combined, /^可用分類$/m);
+});
