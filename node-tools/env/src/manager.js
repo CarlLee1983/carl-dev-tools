@@ -113,7 +113,7 @@ export class EnvManager {
      */
     async list() {
         try {
-            const envFiles = await FileUtils.listFiles(this.projectPath, '^\.env\.');
+            const envFiles = await FileUtils.listFiles(this.projectPath, '^\\.env\\.');
             const environments = [];
 
             for (const file of envFiles) {
@@ -326,13 +326,10 @@ export class EnvManager {
             const entry = `${timestamp} - 切換到: ${envName}\n`;
 
             // 追加到歷史檔案
-            try {
-                const existingHistory = await FileUtils.readFile(historyFile);
-                await FileUtils.writeFile(historyFile, existingHistory + entry);
-            } catch {
-                // 檔案不存在，建立新的
-                await FileUtils.writeFile(historyFile, entry);
-            }
+            const existingHistory = await FileUtils.exists(historyFile)
+                ? await FileUtils.readFile(historyFile)
+                : '';
+            await FileUtils.writeFile(historyFile, existingHistory + entry);
 
         } catch (error) {
             Logger.debug(`記錄切換歷史失敗: ${error.message}`);

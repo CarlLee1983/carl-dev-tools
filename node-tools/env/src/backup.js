@@ -65,7 +65,7 @@ export class BackupManager {
                 return [];
             }
 
-            const backupFiles = await FileUtils.listFiles(this.backupDir, '^\.env\.backup\.');
+            const backupFiles = await FileUtils.listFiles(this.backupDir, '^\\.env\\.backup\\.');
             const backups = [];
 
             for (const file of backupFiles) {

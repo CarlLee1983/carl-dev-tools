@@ -3,7 +3,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import * as diff from 'diff';
 import { EnvManager } from './manager.js';
 import { BackupManager } from './backup.js';
 import { Logger } from './utils/logger.js';
@@ -19,13 +18,13 @@ program
 // 全域選項
 program
     .option('-d, --debug', '啟用除錯模式')
-    .option('-p, --project-path <path>', '指定專案路徑', process.cwd());
+    .option('-p, --project-path <path>', '指定專案路徑', process.env.DEVKIT_PROJECT_PATH || process.env.DEVKIT_ORIGINAL_CWD || process.cwd());
 
 // 初始化命令
 program
     .command('init')
     .description('初始化環境管理')
-    .action(async (options) => {
+    .action(async (_options) => {
         try {
             const projectPath = program.opts().projectPath;
             Logger.info(`初始化環境管理 - 專案路徑: ${projectPath}`);
@@ -181,7 +180,7 @@ program
     .command('diff <env1> [env2]')
     .description('比較環境差異')
     .option('-c, --color', '彩色輸出', true)
-    .action(async (env1, env2 = 'current', options) => {
+    .action(async (env1, env2 = 'current', _options) => {
         try {
             const projectPath = program.opts().projectPath;
             const manager = new EnvManager(projectPath);
@@ -245,7 +244,7 @@ backupCmd
             const projectPath = program.opts().projectPath;
             const backupManager = new BackupManager(projectPath);
             
-            const backupName = await backupManager.create(options.env, customName);
+            await backupManager.create(options.env, customName);
             
         } catch (error) {
             Logger.error(error.message);
@@ -337,7 +336,7 @@ backupCmd
             const days = parseInt(options.days);
             const keep = parseInt(options.keep);
             
-            const result = await backupManager.clean(days, keep);
+            await backupManager.clean(days, keep);
             
         } catch (error) {
             Logger.error(error.message);
