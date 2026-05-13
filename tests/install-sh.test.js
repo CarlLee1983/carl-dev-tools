@@ -77,3 +77,42 @@ test('install.sh --non-interactive implies --force (no prompt when symlink exist
         assert.doesNotMatch(r.combined, /是否要覆蓋/);
     });
 });
+
+test('install.sh --help walks the new section style without emoji', () => {
+    const r = runInstall(['--help']);
+    assert.equal(r.status, 0, r.combined);
+    assert.match(r.combined, /^使用方式$/m);
+    assert.doesNotMatch(r.combined, /🛠️|📂|💡|🚀|✅|❌|⚠️|🎉|🔍|🗑️/);
+});
+
+test('install.sh unknown flag prints 錯誤： to stderr without emoji', () => {
+    const r = runInstall(['--definitely-not-a-flag']);
+    assert.notEqual(r.status, 0, r.combined);
+    assert.match(stripAnsi(r.stderr), /錯誤：/);
+    assert.doesNotMatch(r.combined, /❌/);
+});
+
+test('install.sh --user prints 下一步 with shell-specific PATH hint when ~/.local/bin missing', () => {
+    withSandboxHome((home) => {
+        // Trim PATH so it does NOT contain $home/.local/bin.
+        const r = runInstall(['--user', '--force', '--non-interactive'], {
+            HOME: home,
+            PATH: '/usr/bin:/bin',
+            SHELL: '/bin/zsh',
+        });
+        assert.equal(r.status, 0, r.combined);
+        assert.match(r.combined, /^下一步$/m);
+        assert.match(r.combined, /echo 'export PATH="\$HOME\/\.local\/bin:\$PATH"' >> ~\/\.zshrc/);
+    });
+});
+
+test('install.sh --uninstall walks the new style', () => {
+    withSandboxHome((home) => {
+        runInstall(['--user', '--force', '--non-interactive'], { HOME: home });
+        const r = runInstall(['--uninstall'], { HOME: home });
+        assert.equal(r.status, 0, r.combined);
+        assert.doesNotMatch(r.combined, /🎉|🗑️|✅|❌/);
+        const symlink = join(home, '.local', 'bin', 'devkit');
+        assert.ok(!existsSync(symlink), `symlink should be gone: ${symlink}\n${r.combined}`);
+    });
+});
