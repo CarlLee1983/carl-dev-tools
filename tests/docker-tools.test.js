@@ -99,3 +99,13 @@ test('clean: --help exits 0 without touching docker', () => {
     assert.match(r.stdout ?? '', /Docker 保守資源清理/);
     assert.match(r.stdout ?? '', /DELETE_DOCKER_VOLUMES/);
 });
+
+test('clean: --dry-run does not invoke prune; prints planned command', () => {
+    const r = runClean({ args: ['--dry-run', '--force'] });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    // pre-check 會跑一次 info，但不該出現 system prune
+    assert.match(r.log, /^info$/m);
+    assert.doesNotMatch(r.log, /system prune/);
+    // 預計指令仍須在 stdout 列出
+    assert.match(r.stdout, /預計指令.*system prune --force/);
+});

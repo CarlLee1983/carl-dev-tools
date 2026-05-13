@@ -64,8 +64,18 @@ check_docker_available() {
 main() {
     echo -e "${BOLD}🐳 Docker 保守資源清理${NC}"
     check_docker_available || exit 1
-    # 後續任務補 prune / dry-run / volumes 邏輯
-    echo -e "${YELLOW}（skeleton：尚未實作清理邏輯）${NC}"
+
+    local prune_cmd=("system" "prune" "--force")
+
+    echo -e "${BLUE}預計指令：${NC}$DOCKER_BIN ${prune_cmd[*]}"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}🟡 --dry-run，僅列出指令，不實際執行${NC}"
+        exit 0
+    fi
+
+    # 後續任務補 y/N 與實際 prune 呼叫
+    echo -e "${YELLOW}（尚未實作實際 prune 呼叫）${NC}"
 }
 
 # 僅在被直接執行時跑 CLI；被 source 時保留函式供測試使用
