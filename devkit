@@ -508,6 +508,108 @@ update_devkit() {
     fi
 }
 
+# 系統體檢
+doctor_devkit() {
+    local ok=0 warnings=0 errors=0
+
+    echo -e "${BOLD}DevKit 體檢${NC}"
+    echo ""
+
+    # --- bash ---
+    echo "bash"
+    local bash_ver
+    bash_ver=$(bash --version | head -1 | sed -E 's/.*version ([0-9.]+).*/\1/')
+    echo "  OK    bash $bash_ver"
+    ((ok++))
+    echo ""
+
+    # --- git ---
+    echo "git"
+    if command -v git >/dev/null 2>&1; then
+        local git_ver
+        git_ver=$(git --version | awk '{print $3}')
+        echo "  OK    git $git_ver"
+        ((ok++))
+        if [ -d "$SCRIPT_DIR/.git" ]; then
+            local sha branch
+            sha=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "?")
+            branch=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+            echo "  OK    \$SCRIPT_DIR 是 git 倉庫（commit $sha on $branch）"
+            ((ok++))
+        else
+            echo "  警告  \$SCRIPT_DIR 不是 git 倉庫，devkit --update 不可用"
+            ((warnings++))
+        fi
+    else
+        echo "  錯誤  git 未安裝"
+        ((errors++))
+    fi
+    echo ""
+
+    # --- Node.js ---
+    echo "Node.js"
+    if command -v node >/dev/null 2>&1; then
+        local node_ver
+        node_ver=$(node -v | sed 's/v//')
+        local major="${node_ver%%.*}"
+        if [ "$major" -lt 18 ]; then
+            echo "  錯誤  Node v${node_ver} 不支援，請升級至 v18 LTS"
+            ((errors++))
+        elif [ "$major" -ge 24 ]; then
+            echo "  警告  Node v${node_ver} 未經完整測試（仍可執行）"
+            ((warnings++))
+        else
+            echo "  OK    Node v${node_ver}（>=18 <24）"
+            ((ok++))
+        fi
+    else
+        echo "  錯誤  Node.js 未安裝"
+        ((errors++))
+    fi
+    echo ""
+
+    # --- pnpm ---
+    echo "pnpm"
+    if command -v pnpm >/dev/null 2>&1; then
+        local pnpm_ver
+        pnpm_ver=$(pnpm --version)
+        echo "  OK    pnpm $pnpm_ver"
+        ((ok++))
+    else
+        echo "  錯誤  pnpm 未安裝，請執行：corepack enable && corepack prepare pnpm@8 --activate"
+        ((errors++))
+    fi
+    echo ""
+
+    # --- PATH / symlink ---
+    echo "PATH"
+    local symlink_ok=false
+    for target in "$HOME/.local/bin/devkit" "/usr/local/bin/devkit"; do
+        if [ -L "$target" ] && [ "$(readlink "$target")" = "$SCRIPT_DIR/devkit" ]; then
+            echo "  OK    $target → \$SCRIPT_DIR/devkit"
+            ((ok++))
+            symlink_ok=true
+        fi
+    done
+    if [ "$symlink_ok" = false ]; then
+        echo "  警告  找不到指回 \$SCRIPT_DIR/devkit 的 symlink"
+        ((warnings++))
+    fi
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
+        echo "  錯誤  ~/.local/bin 不在 PATH，請執行："
+        echo "        echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
+        ((errors++))
+    fi
+    echo ""
+
+    # --- 結果 ---
+    echo "結果"
+    echo "  $ok 項通過，$warnings 項警告，$errors 項錯誤"
+
+    [ "$errors" -gt 0 ] && return 1
+    return 0
+}
+
 # 主程式
 main() {
     # 解析命令列參數
@@ -526,6 +628,9 @@ main() {
             ;;
         "--update")
             update_devkit
+            ;;
+        "--doctor")
+            doctor_devkit
             ;;
         *":"*)
             # 執行指定工具

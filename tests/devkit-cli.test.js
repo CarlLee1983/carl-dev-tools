@@ -113,3 +113,23 @@ test('devkit --update outside a git work tree exits non-zero with bootstrap hint
         rmSync(tmpDir, { recursive: true, force: true });
     }
 });
+
+test('devkit --doctor prints the health report sections without emoji', () => {
+    const r = runDevkit(['--doctor']);
+    assert.match(r.combined, /^DevKit 體檢$/m);
+    assert.match(r.combined, /^bash$/m);
+    assert.match(r.combined, /^Node\.js$/m);
+    assert.match(r.combined, /^PATH$/m);
+    assert.match(r.combined, /^結果$/m);
+    assert.doesNotMatch(r.combined, /❌|✅|⚠️/);
+});
+
+test('devkit --doctor exits 1 when required tooling is missing from PATH', () => {
+    const result = spawnSync('bash', [devkitPath, '--doctor'], {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: '/usr/bin:/bin' },
+    });
+    const combined = stripAnsi((result.stdout ?? '') + (result.stderr ?? ''));
+    assert.equal(result.status, 1, combined);
+    assert.match(combined, /錯誤/);
+});
