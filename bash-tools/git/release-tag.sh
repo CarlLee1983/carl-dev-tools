@@ -308,77 +308,106 @@ select_and_switch_branch() {
     done
 }
 
-# 掃描所有標籤前綴
-scan_tag_prefixes() {
-    echo -e "${BLUE}🔍 掃描專案標籤前綴...${NC}"
-    
-    # 獲取所有標籤
+# 全域：scan_tag_tracks 寫入下列變數供 select_track / 後續流程使用
+HAS_ANY_TAGS=false
+HAS_PLAIN_SEMVER=false
+PREFIX_LIST=()
+
+# 掃描專案版本軌道（prefix + 純 SemVer）
+scan_tag_tracks() {
+    echo -e "${BLUE}🔍 掃描專案版本軌道...${NC}"
+
+    HAS_ANY_TAGS=false
+    HAS_PLAIN_SEMVER=false
+    PREFIX_LIST=()
+
     local all_tags
     all_tags=$("$GIT_BIN" tag -l 2>/dev/null | sort -V)
-    
+
     if [ -z "$all_tags" ]; then
         echo -e "${YELLOW}⚠️  專案中沒有任何標籤${NC}"
-        echo -e "${CYAN}💡 將建立第一個標籤${NC}"
-        return 1
+        return 0
     fi
-    
-    # 解析前綴（格式：prefix/vX.Y.Z）
+
+    HAS_ANY_TAGS=true
+
+    if echo "$all_tags" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+        HAS_PLAIN_SEMVER=true
+    fi
+
     local prefixes
     prefixes=$(echo "$all_tags" | grep -E '^[^/]+/v[0-9]+\.[0-9]+\.[0-9]+' | cut -d'/' -f1 | sort -u)
-    
-    if [ -z "$prefixes" ]; then
-        echo -e "${YELLOW}⚠️  沒有找到符合格式的標籤（格式：prefix/vX.Y.Z）${NC}"
-        echo -e "${CYAN}💡 將建立第一個標籤${NC}"
-        return 1
+    if [ -n "$prefixes" ]; then
+        while IFS= read -r p; do
+            PREFIX_LIST+=("$p")
+        done <<< "$prefixes"
     fi
-    
-    echo -e "${GREEN}✅ 找到以下標籤前綴：${NC}"
-    echo "$prefixes" | nl -w2 -s'. '
-    
+
+    echo -e "${GREEN}✅ 找到以下版本軌道：${NC}"
+    local idx=1
+    if [ "$HAS_PLAIN_SEMVER" = true ]; then
+        local plain_latest
+        plain_latest=$(echo "$all_tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+        echo "  ${idx}. (無前綴) — 目前 ${plain_latest}"
+    else
+        echo "  ${idx}. (無前綴) — 將建立 v0.0.1"
+    fi
+    idx=$((idx+1))
+    for p in "${PREFIX_LIST[@]}"; do
+        local pl
+        pl=$("$GIT_BIN" tag -l "${p}/v*" 2>/dev/null | sort -V | tail -n1)
+        echo "  ${idx}. ${p}/ — 目前 ${pl}"
+        idx=$((idx+1))
+    done
+
     return 0
 }
 
-# 選擇標籤前綴
-select_prefix() {
-    local prefixes
-    prefixes=$("$GIT_BIN" tag -l 2>/dev/null | grep -E '^[^/]+/v[0-9]+\.[0-9]+\.[0-9]+' | cut -d'/' -f1 | sort -u)
-    
-    if [ -z "$prefixes" ]; then
-        # 沒有現有標籤，讓使用者輸入新前綴
+# 選擇要操作的版本軌道（"(無前綴)" 永遠置頂）
+select_track() {
+    if [ "$HAS_ANY_TAGS" = false ]; then
+        # 零 tag：問是否要加 prefix，預設 N → 純 SemVer
+        # 使用 echo + read（不用 read -p）確保 pipe stdin 下 prompt 仍可見
         echo ""
-        echo -e "${CYAN}請輸入新的標籤前綴（例如：release, testing, hotfix）：${NC}"
-        read -r SELECTED_PREFIX
-        
-        if [ -z "$SELECTED_PREFIX" ]; then
-            echo -e "${RED}❌ 前綴不能為空${NC}"
-            exit 1
+        echo -n "是否要加上 prefix？(y/N): "
+        read -r REPLY
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo ""
+            echo -e "${CYAN}請輸入新的標籤前綴（例如：release, testing, hotfix）：${NC}"
+            read -r SELECTED_PREFIX
+            if [ -z "$SELECTED_PREFIX" ]; then
+                echo -e "${RED}❌ 前綴不能為空${NC}"
+                exit 1
+            fi
+            CURRENT_VERSION="0.0.0"
+            echo -e "${BLUE}📍 將建立第一個標籤：${SELECTED_PREFIX}/v0.0.1${NC}"
+        else
+            SELECTED_PREFIX=""
+            CURRENT_VERSION="0.0.0"
+            echo -e "${BLUE}📍 將建立第一個標籤：v0.0.1${NC}"
         fi
-        
-        CURRENT_VERSION="0.0.0"
-        echo -e "${BLUE}📍 將建立第一個標籤：${SELECTED_PREFIX}/v0.0.1${NC}"
         return 0
     fi
-    
-    local prefix_array=()
-    while IFS= read -r line; do
-        prefix_array+=("$line")
-    done <<< "$prefixes"
-    
+
+    # 有 tag：選單第 1 項固定為 (無前綴)，其後接 PREFIX_LIST
+    local total=$(( ${#PREFIX_LIST[@]} + 1 ))
     echo ""
-    echo -e "${CYAN}請選擇要操作的標籤前綴：${NC}"
-    
+    echo -e "${CYAN}請選擇要操作的版本軌道：${NC}"
     while true; do
-        read -p "請輸入編號 (1-${#prefix_array[@]}): " -r choice
-        
-        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#prefix_array[@]}" ]; then
-            SELECTED_PREFIX="${prefix_array[$((choice-1))]}"
+        read -p "請輸入編號 (1-${total}): " -r choice
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$total" ]; then
+            if [ "$choice" -eq 1 ]; then
+                SELECTED_PREFIX=""
+                echo -e "${GREEN}✅ 已選擇軌道：(無前綴)${NC}"
+            else
+                SELECTED_PREFIX="${PREFIX_LIST[$((choice-2))]}"
+                echo -e "${GREEN}✅ 已選擇軌道：${SELECTED_PREFIX}/${NC}"
+            fi
             break
         else
-            echo -e "${RED}❌ 請輸入有效的編號 (1-${#prefix_array[@]})${NC}"
+            echo -e "${RED}❌ 請輸入有效的編號 (1-${total})${NC}"
         fi
     done
-    
-    echo -e "${GREEN}✅ 已選擇前綴：${SELECTED_PREFIX}${NC}"
 }
 
 # 獲取指定 prefix 的最新版本（prefix 為空 = 純 SemVer 軌道）
@@ -569,16 +598,15 @@ main() {
     # 獲取遠端最新標籤
     fetch_remote_tags
     
-    # 掃描標籤前綴
-    if scan_tag_prefixes; then
-        # 選擇前綴
-        select_prefix
-        
-        # 獲取最新版本
+    # 掃描版本軌道（prefix + 純 SemVer）
+    scan_tag_tracks
+
+    # 選擇版本軌道
+    select_track
+
+    # 取得目前該軌道的最新版本（軌道為空字串時走純 SemVer）
+    if [ "$HAS_ANY_TAGS" = true ]; then
         get_latest_version "$SELECTED_PREFIX"
-    else
-        # 沒有現有標籤，建立第一個
-        select_prefix
     fi
     
     # 檢查 commit SHA1 是否與最新標籤相同

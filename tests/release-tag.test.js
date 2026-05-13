@@ -151,3 +151,63 @@ test('parse_tag_version: strips prefix/v from prefixed tag', () => {
     assert.equal(r.status, 0);
     assert.equal(r.stdout, '1.2.3');
 });
+
+test('select_track: mixed tags show (無前綴) first then existing prefixes', () => {
+    const r = runReleaseTag({
+        input: '1\n1\n', // 選軌道 1 (無前綴)、增量 1 (patch)
+        fakeOpts: {
+            tags: ['v1.1.0', 'v1.1.1', 'release/v1.2.3'],
+        },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    // 選單置頂
+    assert.match(r.stdout, /1\. \(無前綴\) — 目前 v1\.1\.1/);
+    assert.match(r.stdout, /2\. release\/ — 目前 release\/v1\.2\.3/);
+    assert.match(r.stdout, /✅ 已選擇軌道：\(無前綴\)/);
+});
+
+test('select_track: plain-only tags still show (無前綴) as the lone option', () => {
+    const r = runReleaseTag({
+        input: '1\n1\n',
+        fakeOpts: { tags: ['v1.0.0', 'v1.1.0'] },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /1\. \(無前綴\) — 目前 v1\.1\.0/);
+    // 軌道選單用 2-space 縮排，不應該出現第 2 項
+    assert.doesNotMatch(r.stdout, /^ {2}2\. /m);
+    assert.match(r.stdout, /✅ 已選擇軌道：\(無前綴\)/);
+});
+
+test('select_track: prefix-only tags show (無前綴) — 將建立 v0.0.1 as top entry', () => {
+    const r = runReleaseTag({
+        input: '2\n1\n', // 選軌道 2 (release/)
+        fakeOpts: { tags: ['release/v1.2.3'] },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /1\. \(無前綴\) — 將建立 v0\.0\.1/);
+    assert.match(r.stdout, /2\. release\/ — 目前 release\/v1\.2\.3/);
+    assert.match(r.stdout, /✅ 已選擇軌道：release\//);
+});
+
+test('select_track: zero tags + default N creates plain v0.0.1', () => {
+    const r = runReleaseTag({
+        input: '\n1\n', // Enter 走預設 N、增量 1
+        fakeOpts: { tags: [] },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    // read -p 的 prompt 在 bash 走 stderr；assert 兩邊合併
+    const out = r.stdout + r.stderr;
+    assert.match(out, /是否要加上 prefix？\(y\/N\)/);
+    assert.match(out, /將建立第一個標籤：v0\.0\.1/);
+});
+
+test('select_track: zero tags + Y prompts for prefix and creates release/v0.0.1', () => {
+    const r = runReleaseTag({
+        input: 'y\nrelease\n1\n',
+        fakeOpts: { tags: [] },
+    });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const out = r.stdout + r.stderr;
+    assert.match(out, /是否要加上 prefix？\(y\/N\)/);
+    assert.match(out, /將建立第一個標籤：release\/v0\.0\.1/);
+});
