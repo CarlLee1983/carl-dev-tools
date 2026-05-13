@@ -158,44 +158,42 @@ get_category_tools() {
 
 # 顯示所有工具清單
 show_all_tools() {
-    echo -e "${BOLD}🛠️  Development Toolkit${NC}"
+    echo -e "${BOLD}DevKit v${VERSION}${NC}"
     echo ""
-    
+
     local categories=($(get_categories))
-    
+
     if [ ${#categories[@]} -eq 0 ]; then
-        echo -e "${YELLOW}⚠️  沒有找到任何工具${NC}"
-        echo -e "${CYAN}💡 請確認目錄結構完整：需要 bash-tools/ 和 node-tools/ 子目錄${NC}"
+        echo -e "${YELLOW}沒有找到任何工具${NC}"
+        echo "請確認目錄結構完整：需要 bash-tools/ 和 node-tools/ 子目錄"
         return
     fi
-    
-    echo -e "${CYAN}📂 可用分類：${NC}"
+
+    echo -e "${CYAN}分類${NC}"
     for category in "${categories[@]}"; do
         local tool_count
         tool_count=$(get_category_tools "$category" | wc -l | tr -d '[:space:]')
         local category_display
         category_display=$(title_case "$category")
-        echo "  $category     - $category_display 相關工具 ($tool_count 個工具)"
+        printf "  %-8s%s 相關工具 (%s)\n" "$category" "$category_display" "$tool_count"
     done
-    
+
     echo ""
-    echo -e "${CYAN}🔧 所有工具：${NC}"
-    
+    echo -e "${CYAN}工具${NC}"
     for category in "${categories[@]}"; do
         local category_display
         category_display=$(title_case "$category")
-        echo -e "${BOLD}  $category_display:${NC}"
-        
+        echo -e "${BOLD}  $category_display${NC}"
         get_category_tools "$category" | while IFS='|' read -r tool_name script_path description; do
-            echo "    $tool_name  - $description"
+            printf "    %-16s%s\n" "$tool_name" "$description"
         done
         echo ""
     done
-    
-    echo -e "${CYAN}💡 使用方式：${NC}"
-    echo "  devkit <category>                # 顯示分類工具"
-    echo "  devkit <category>:<tool>         # 執行指定工具"
-    echo "  devkit --help <category>:<tool>  # 顯示工具說明"
+
+    echo -e "${CYAN}使用方式${NC}"
+    echo "  devkit <category>          顯示分類工具"
+    echo "  devkit <category>:<tool>   執行指定工具"
+    echo "  devkit --help              顯示完整說明"
 }
 
 # 顯示特定分類的工具
