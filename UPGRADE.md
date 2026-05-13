@@ -11,7 +11,7 @@ node --version
 pnpm --version
 
 # 執行環境相容性檢查
-cd scripts && node src/utils/version-check.js
+node src/utils/version-check.js
 ```
 
 ### 2. 備份當前環境
@@ -31,7 +31,8 @@ tar -czf node_modules.backup.tar.gz node_modules/
 | 20.x LTS    | ✅ 完全支援 | 推薦版本 |
 | 21.x        | ⚠️ 部分支援 | 可能有問題 |
 | 22.x LTS    | ✅ 完全支援 | 最新推薦版本 |
-| 23.x+       | ❌ 不支援 | 等待相容性測試 |
+| 23.x        | ⚠️ 可執行但未完整測試 | 非 LTS，不建議作為主要版本 |
+| 24.x+       | ❌ 不支援 | 超出目前 engines 範圍 |
 
 ## 🔄 升級步驟
 
@@ -59,7 +60,7 @@ pnpm --version
 
 ### 步驟 3: 重新安裝依賴
 ```bash
-cd scripts
+# 在 DevKit 專案根目錄執行
 
 # 清理舊的依賴
 rm -rf node_modules pnpm-lock.yaml
@@ -175,9 +176,9 @@ npm install -g n
 
 ## 🔧 版本鎖定策略
 
-為了避免意外升級造成問題：
+為了避免意外升級造成問題，可依團隊需求採用以下策略：
 
-### 1. 使用 .nvmrc 檔案
+### 1. 使用 .nvmrc 檔案（可選）
 ```bash
 # 建立 .nvmrc
 echo "22.11.0" > .nvmrc
@@ -190,7 +191,7 @@ nvm use
 ```json
 {
   "engines": {
-    "node": ">=18.0.0 <23.0.0",
+    "node": ">=18.0.0 <24.0.0",
     "pnpm": ">=8.0.0 <10.0.0"
   }
 }

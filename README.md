@@ -15,19 +15,17 @@
 ## 📂 目錄結構
 
 ```
-scripts/
+DevTools/
 ├── README.md                 # 主要說明文件
 ├── devkit                    # 🆕 全域 CLI 工具
 ├── install.sh                # 🆕 DevKit 安裝腳本
-├── git/                      # Git 相關工具
+├── bash-tools/git/           # Git 相關工具
 │   ├── README.md            # Git 工具說明
 │   ├── clean-branch.sh      # 分支清理工具
 │   ├── sync-all.sh          # 分支同步工具
 │   └── release-tag.sh       # 智慧版本標籤工具
-├── dev/                      # 開發工具（未來擴展）
-├── system/                   # 系統管理工具（未來擴展）
-├── deploy/                   # 部署相關工具（未來擴展）
-└── utils/                    # 通用工具（未來擴展）
+├── node-tools/env/           # 環境檔案管理工具
+└── src/utils/                # Node.js 共用工具
 ```
 
 ## 🚀 快速開始
@@ -100,22 +98,22 @@ devkit --interactive
 **使用方式：**
 ```bash
 # 掃描所有已合併的分支（預設行為）
-./git/clean-branch.sh
+./bash-tools/git/clean-branch.sh
 
 # 指定基礎分支
-./git/clean-branch.sh develop
+./bash-tools/git/clean-branch.sh develop
 
 # 只掃描符合特定模式的分支
-./git/clean-branch.sh --pattern 'bug-|issue-'
+./bash-tools/git/clean-branch.sh --pattern 'bug-|issue-'
 
 # 強制模式（跳過確認）
-./git/clean-branch.sh --force
+./bash-tools/git/clean-branch.sh --force
 
 # 顯示詳細掃描過程
-./git/clean-branch.sh --debug
+./bash-tools/git/clean-branch.sh --debug
 
 # 顯示說明
-./git/clean-branch.sh --help
+./bash-tools/git/clean-branch.sh --help
 ```
 
 #### sync-all.sh - 專案分支同步工具
@@ -124,10 +122,10 @@ devkit --interactive
 **使用方式：**
 ```bash
 # 在專案目錄下執行
-./git/sync-all.sh
+./bash-tools/git/sync-all.sh
 
 # 或設定別名使用
-alias git-sync="~/scripts/git/sync-all.sh"
+alias git-sync="~/devkit/bash-tools/git/sync-all.sh"
 git-sync
 ```
 
@@ -143,13 +141,13 @@ git-sync
 **使用方式：**
 ```bash
 # 互動式模式
-./git/release-tag.sh
+./bash-tools/git/release-tag.sh
 
 # 建立標籤並推送到遠端
-./git/release-tag.sh --push
+./bash-tools/git/release-tag.sh --push
 
 # 或設定別名使用
-alias git-tag="~/scripts/git/release-tag.sh"
+alias git-tag="~/devkit/bash-tools/git/release-tag.sh"
 git-tag
 ```
 
@@ -208,7 +206,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 
 - **作業系統：** macOS / Linux / Windows (WSL)
 - **Shell：** Bash 4.0+
-- **Node.js：** 18.0+ (推薦 18.x 或 20.x LTS)
+- **Node.js：** >=18.0.0 <24.0.0（推薦 20.x 或 22.x LTS）
 - **pnpm：** 8.0+
 - **Git：** 2.0+
 - **網路連線：** 遠端操作需要
@@ -221,7 +219,8 @@ source ~/.zshrc  # 或 source ~/.bashrc
 | 20.x LTS | ✅ 完全支援 | 推薦 |
 | 21.x | ⚠️ 部分支援 | 可能有問題 |
 | 22.x LTS | ✅ 完全支援 | 最新推薦版本 |
-| 23.x+ | ❌ 未測試 | 不建議使用 |
+| 23.x | ⚠️ 可執行但未完整測試 | 非 LTS，不建議作為主要版本 |
+| 24.x+ | ❌ 不支援 | 超出目前 engines 範圍 |
 
 ### 🤖 自動版本管理
 DevKit 支援自動 Node.js 版本切換，確保工具在正確版本下運行：
@@ -243,7 +242,7 @@ DevKit 支援自動 Node.js 版本切換，確保工具在正確版本下運行�
 
 ### 清理分支範例
 ```bash
-$ ./git/clean-branch.sh
+$ ./bash-tools/git/clean-branch.sh
 🚀 開始 Git 分支清理程序
 🔍 偵測主要分支...
 ✓ 偵測到主要分支: main
