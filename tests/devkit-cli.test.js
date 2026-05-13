@@ -66,3 +66,14 @@ test('devkit <category> shows a clean category view with usage hint', () => {
     assert.match(r.combined, /^使用方式$/m);
     assert.match(r.combined, /devkit git:<tool>/);
 });
+
+test('devkit unknown category exits non-zero with a clear error and category list', () => {
+    const r = runDevkit(['definitely-not-a-category']);
+    assert.notEqual(r.status, 0, r.combined);
+    assert.match(r.combined, /錯誤：分類 'definitely-not-a-category' 不存在/);
+    assert.match(r.combined, /^可用分類$/m);
+    assert.match(r.combined, /\bgit\b/);
+    assert.match(r.combined, /\benv\b/);
+    // The error must not leak the old emoji-flagged format
+    assert.doesNotMatch(r.combined, /❌/);
+});
