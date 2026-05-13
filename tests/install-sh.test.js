@@ -45,3 +45,35 @@ test('install.sh --help exits 0', () => {
     const r = runInstall(['--help']);
     assert.equal(r.status, 0, r.combined);
 });
+
+test('install.sh --user --force --non-interactive completes without prompting', () => {
+    withSandboxHome((home) => {
+        const r = runInstall(['--user', '--force', '--non-interactive'], { HOME: home });
+        assert.equal(r.status, 0, r.combined);
+        const symlink = join(home, '.local', 'bin', 'devkit');
+        assert.ok(existsSync(symlink), `symlink missing: ${symlink}\n${r.combined}`);
+        assert.equal(readlinkSync(symlink), join(repoDir, 'devkit'));
+    });
+});
+
+test('install.sh --user --force --non-interactive is idempotent on second run', () => {
+    withSandboxHome((home) => {
+        const first = runInstall(['--user', '--force', '--non-interactive'], { HOME: home });
+        assert.equal(first.status, 0, first.combined);
+        const second = runInstall(['--user', '--force', '--non-interactive'], { HOME: home });
+        assert.equal(second.status, 0, second.combined);
+        const symlink = join(home, '.local', 'bin', 'devkit');
+        assert.equal(readlinkSync(symlink), join(repoDir, 'devkit'));
+    });
+});
+
+test('install.sh --non-interactive implies --force (no prompt when symlink exists)', () => {
+    withSandboxHome((home) => {
+        // Seed: install once with --force.
+        runInstall(['--user', '--force', '--non-interactive'], { HOME: home });
+        // Now re-install without explicit --force; --non-interactive alone must skip the y/N prompt.
+        const r = runInstall(['--user', '--non-interactive'], { HOME: home });
+        assert.equal(r.status, 0, r.combined);
+        assert.doesNotMatch(r.combined, /是否要覆蓋/);
+    });
+});

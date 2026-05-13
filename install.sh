@@ -21,6 +21,7 @@ NC='\033[0m'
 # 安裝選項
 INSTALL_METHOD=""
 FORCE_INSTALL=false
+NON_INTERACTIVE=false
 UNINSTALL=false
 
 # 顯示使用說明
@@ -265,6 +266,10 @@ uninstall() {
 
 # 互動式安裝
 interactive_install() {
+    if [ "$NON_INTERACTIVE" = true ]; then
+        echo -e "${RED}錯誤：--non-interactive 模式需明確指定 --system / --user / --alias${NC}" >&2
+        exit 1
+    fi
     echo -e "${BOLD}🛠️  DevKit 互動式安裝${NC}"
     echo ""
     echo -e "${CYAN}請選擇安裝方式：${NC}"
@@ -320,6 +325,11 @@ main() {
                 shift
                 ;;
             --force)
+                FORCE_INSTALL=true
+                shift
+                ;;
+            --non-interactive)
+                NON_INTERACTIVE=true
                 FORCE_INSTALL=true
                 shift
                 ;;
