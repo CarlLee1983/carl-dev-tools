@@ -22,6 +22,37 @@ SELECTED_PREFIX=""
 CURRENT_VERSION=""
 NEW_VERSION=""
 AVAILABLE_MAIN_BRANCHES=()
+GIT_BIN="${DEVKIT_GIT_BIN:-git}"
+
+# --- Tag 字串組裝 helper（空 prefix = 純 SemVer 軌道）---
+tag_glob() {
+    local prefix="$1"
+    if [ -z "$prefix" ]; then
+        printf 'v*'
+    else
+        printf '%s/v*' "$prefix"
+    fi
+}
+
+format_tag() {
+    local prefix="$1"
+    local version="$2"
+    if [ -z "$prefix" ]; then
+        printf 'v%s' "$version"
+    else
+        printf '%s/v%s' "$prefix" "$version"
+    fi
+}
+
+parse_tag_version() {
+    local tag="$1"
+    local prefix="$2"
+    if [ -z "$prefix" ]; then
+        printf '%s' "${tag#v}"
+    else
+        printf '%s' "${tag#${prefix}/v}"
+    fi
+}
 
 # 顯示使用說明
 show_help() {
@@ -52,7 +83,7 @@ show_help() {
 # 檢查工作目錄是否乾淨
 check_working_directory() {
     local status_output
-    status_output=$(git status --porcelain 2>/dev/null)
+    status_output=$("$GIT_BIN" status --porcelain 2>/dev/null)
     
     if [ -n "$status_output" ]; then
         echo -e "${RED}⚠️  工作目錄有未提交的變更${NC}"
@@ -77,13 +108,13 @@ fetch_remote_tags() {
     echo -e "${BLUE}🔄 獲取遠端最新標籤...${NC}"
     
     # 檢查是否有遠端倉庫
-    if ! git remote -v | grep -q .; then
+    if ! "$GIT_BIN" remote -v | grep -q .; then
         echo -e "${YELLOW}⚠️  沒有設定遠端倉庫，跳過標籤同步${NC}"
         return 0
     fi
     
     # 嘗試 fetch 標籤
-    if git fetch --tags --prune-tags &>/dev/null; then
+    if "$GIT_BIN" fetch --tags --prune-tags &>/dev/null; then
         echo -e "${GREEN}✅ 成功獲取遠端標籤${NC}"
     else
         echo -e "${YELLOW}⚠️  無法連接到遠端倉庫，使用本地標籤${NC}"
@@ -97,11 +128,13 @@ check_commit_sha() {
     
     # 獲取當前 commit 的 SHA1
     local current_sha
-    current_sha=$(git rev-parse HEAD)
+    current_sha=$("$GIT_BIN" rev-parse HEAD)
     
     # 獲取該前綴下的最新標籤
     local latest_tag
-    latest_tag=$(git tag -l "${prefix}/v*" 2>/dev/null | sort -V | tail -n1)
+    local glob
+    glob=$(tag_glob "$prefix")
+    latest_tag=$("$GIT_BIN" tag -l "$glob" 2>/dev/null | sort -V | tail -n1)
     
     if [ -z "$latest_tag" ]; then
         # 沒有現有標籤，可以建立
@@ -111,7 +144,7 @@ check_commit_sha() {
     
     # 獲取最新標籤的 commit SHA1
     local tag_sha
-    tag_sha=$(git rev-list -n 1 "$latest_tag" 2>/dev/null)
+    tag_sha=$("$GIT_BIN" rev-list -n 1 "$latest_tag" 2>/dev/null)
     
     if [ -z "$tag_sha" ]; then
         echo -e "${YELLOW}⚠️  無法獲取標籤 ${latest_tag} 的 commit 資訊${NC}"
@@ -140,7 +173,7 @@ scan_main_branches() {
     
     # 獲取所有本地和遠端分支
     local all_branches
-    all_branches=$(git branch -a 2>/dev/null | sed 's/^[* ] //' | sed 's/remotes\/origin\///' | sort -u | grep -v HEAD || true)
+    all_branches=$("$GIT_BIN" branch -a 2>/dev/null | sed 's/^[* ] //' | sed 's/remotes\/origin\///' | sort -u | grep -v HEAD || true)
     
     # 檢查哪些主要分支存在
     for candidate in "${main_branch_candidates[@]}"; do
@@ -167,7 +200,7 @@ scan_main_branches() {
 # 檢查並選擇分支
 check_and_select_branch() {
     local current_branch
-    current_branch=$(git branch --show-current 2>/dev/null)
+    current_branch=$("$GIT_BIN" branch --show-current 2>/dev/null)
     
     echo -e "${BLUE}📍 當前分支：${current_branch}${NC}"
     
@@ -239,7 +272,7 @@ select_and_switch_branch() {
                 
                 # 檢查工作目錄是否乾淨
                 local status_output
-                status_output=$(git status --porcelain 2>/dev/null)
+                status_output=$("$GIT_BIN" status --porcelain 2>/dev/null)
                 
                 if [ -n "$status_output" ]; then
                     echo -e "${RED}❌ 工作目錄有未提交的變更，無法切換分支${NC}"
@@ -248,12 +281,12 @@ select_and_switch_branch() {
                 fi
                 
                 # 切換分支
-                if git checkout "$selected_branch" &>/dev/null; then
+                if "$GIT_BIN" checkout "$selected_branch" &>/dev/null; then
                     echo -e "${GREEN}✅ 成功切換到分支：${selected_branch}${NC}"
                     
                     # 嘗試拉取最新變更
                     echo -e "${BLUE}🔄 拉取最新變更...${NC}"
-                    if git pull origin "$selected_branch" &>/dev/null; then
+                    if "$GIT_BIN" pull origin "$selected_branch" &>/dev/null; then
                         echo -e "${GREEN}✅ 成功拉取最新變更${NC}"
                     else
                         echo -e "${YELLOW}⚠️  無法拉取最新變更，繼續使用本地版本${NC}"
@@ -275,93 +308,126 @@ select_and_switch_branch() {
     done
 }
 
-# 掃描所有標籤前綴
-scan_tag_prefixes() {
-    echo -e "${BLUE}🔍 掃描專案標籤前綴...${NC}"
-    
-    # 獲取所有標籤
+# 全域：scan_tag_tracks 寫入下列變數供 select_track / 後續流程使用
+HAS_ANY_TAGS=false
+HAS_PLAIN_SEMVER=false
+PREFIX_LIST=()
+
+# 掃描專案版本軌道（prefix + 純 SemVer）
+scan_tag_tracks() {
+    echo -e "${BLUE}🔍 掃描專案版本軌道...${NC}"
+
+    HAS_ANY_TAGS=false
+    HAS_PLAIN_SEMVER=false
+    PREFIX_LIST=()
+
     local all_tags
-    all_tags=$(git tag -l 2>/dev/null | sort -V)
-    
+    all_tags=$("$GIT_BIN" tag -l 2>/dev/null | sort -V)
+
     if [ -z "$all_tags" ]; then
         echo -e "${YELLOW}⚠️  專案中沒有任何標籤${NC}"
-        echo -e "${CYAN}💡 將建立第一個標籤${NC}"
-        return 1
+        return 0
     fi
-    
-    # 解析前綴（格式：prefix/vX.Y.Z）
+
+    HAS_ANY_TAGS=true
+
+    if echo "$all_tags" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+        HAS_PLAIN_SEMVER=true
+    fi
+
     local prefixes
     prefixes=$(echo "$all_tags" | grep -E '^[^/]+/v[0-9]+\.[0-9]+\.[0-9]+' | cut -d'/' -f1 | sort -u)
-    
-    if [ -z "$prefixes" ]; then
-        echo -e "${YELLOW}⚠️  沒有找到符合格式的標籤（格式：prefix/vX.Y.Z）${NC}"
-        echo -e "${CYAN}💡 將建立第一個標籤${NC}"
-        return 1
+    if [ -n "$prefixes" ]; then
+        while IFS= read -r p; do
+            PREFIX_LIST+=("$p")
+        done <<< "$prefixes"
     fi
-    
-    echo -e "${GREEN}✅ 找到以下標籤前綴：${NC}"
-    echo "$prefixes" | nl -w2 -s'. '
-    
+
+    echo -e "${GREEN}✅ 找到以下版本軌道：${NC}"
+    local idx=1
+    if [ "$HAS_PLAIN_SEMVER" = true ]; then
+        local plain_latest
+        plain_latest=$(echo "$all_tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+        echo "  ${idx}. (無前綴) — 目前 ${plain_latest}"
+    else
+        echo "  ${idx}. (無前綴) — 將建立 v0.0.1"
+    fi
+    idx=$((idx+1))
+    for p in "${PREFIX_LIST[@]}"; do
+        local pl
+        pl=$("$GIT_BIN" tag -l "${p}/v*" 2>/dev/null | sort -V | tail -n1)
+        echo "  ${idx}. ${p}/ — 目前 ${pl}"
+        idx=$((idx+1))
+    done
+
     return 0
 }
 
-# 選擇標籤前綴
-select_prefix() {
-    local prefixes
-    prefixes=$(git tag -l 2>/dev/null | grep -E '^[^/]+/v[0-9]+\.[0-9]+\.[0-9]+' | cut -d'/' -f1 | sort -u)
-    
-    if [ -z "$prefixes" ]; then
-        # 沒有現有標籤，讓使用者輸入新前綴
+# 選擇要操作的版本軌道（"(無前綴)" 永遠置頂）
+select_track() {
+    if [ "$HAS_ANY_TAGS" = false ]; then
+        # 零 tag：問是否要加 prefix，預設 N → 純 SemVer
+        # 使用 echo + read（不用 read -p）確保 pipe stdin 下 prompt 仍可見
         echo ""
-        echo -e "${CYAN}請輸入新的標籤前綴（例如：release, testing, hotfix）：${NC}"
-        read -r SELECTED_PREFIX
-        
-        if [ -z "$SELECTED_PREFIX" ]; then
-            echo -e "${RED}❌ 前綴不能為空${NC}"
-            exit 1
+        echo -n "是否要加上 prefix？(y/N): "
+        read -r REPLY
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo ""
+            echo -e "${CYAN}請輸入新的標籤前綴（例如：release, testing, hotfix）：${NC}"
+            read -r SELECTED_PREFIX
+            if [ -z "$SELECTED_PREFIX" ]; then
+                echo -e "${RED}❌ 前綴不能為空${NC}"
+                exit 1
+            fi
+            CURRENT_VERSION="0.0.0"
+            echo -e "${BLUE}📍 將建立第一個標籤：${SELECTED_PREFIX}/v0.0.1${NC}"
+        else
+            SELECTED_PREFIX=""
+            CURRENT_VERSION="0.0.0"
+            echo -e "${BLUE}📍 將建立第一個標籤：v0.0.1${NC}"
         fi
-        
-        CURRENT_VERSION="0.0.0"
-        echo -e "${BLUE}📍 將建立第一個標籤：${SELECTED_PREFIX}/v0.0.1${NC}"
         return 0
     fi
-    
-    local prefix_array=()
-    while IFS= read -r line; do
-        prefix_array+=("$line")
-    done <<< "$prefixes"
-    
+
+    # 有 tag：選單第 1 項固定為 (無前綴)，其後接 PREFIX_LIST
+    local total=$(( ${#PREFIX_LIST[@]} + 1 ))
     echo ""
-    echo -e "${CYAN}請選擇要操作的標籤前綴：${NC}"
-    
+    echo -e "${CYAN}請選擇要操作的版本軌道：${NC}"
     while true; do
-        read -p "請輸入編號 (1-${#prefix_array[@]}): " -r choice
-        
-        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#prefix_array[@]}" ]; then
-            SELECTED_PREFIX="${prefix_array[$((choice-1))]}"
+        read -p "請輸入編號 (1-${total}): " -r choice
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$total" ]; then
+            if [ "$choice" -eq 1 ]; then
+                SELECTED_PREFIX=""
+                echo -e "${GREEN}✅ 已選擇軌道：(無前綴)${NC}"
+            else
+                SELECTED_PREFIX="${PREFIX_LIST[$((choice-2))]}"
+                echo -e "${GREEN}✅ 已選擇軌道：${SELECTED_PREFIX}/${NC}"
+            fi
             break
         else
-            echo -e "${RED}❌ 請輸入有效的編號 (1-${#prefix_array[@]})${NC}"
+            echo -e "${RED}❌ 請輸入有效的編號 (1-${total})${NC}"
         fi
     done
-    
-    echo -e "${GREEN}✅ 已選擇前綴：${SELECTED_PREFIX}${NC}"
 }
 
-# 獲取指定前綴的最新版本
+# 獲取指定 prefix 的最新版本（prefix 為空 = 純 SemVer 軌道）
 get_latest_version() {
     local prefix="$1"
+    local glob
+    glob=$(tag_glob "$prefix")
+
     local latest_tag
-    
-    latest_tag=$(git tag -l "${prefix}/v*" 2>/dev/null | sort -V | tail -n1)
-    
+    latest_tag=$("$GIT_BIN" tag -l "$glob" 2>/dev/null | sort -V | tail -n1)
+
     if [ -z "$latest_tag" ]; then
         CURRENT_VERSION="0.0.0"
     else
-        CURRENT_VERSION=$(echo "$latest_tag" | sed "s|^${prefix}/v||")
+        CURRENT_VERSION=$(parse_tag_version "$latest_tag" "$prefix")
     fi
-    
-    echo -e "${BLUE}📍 當前最新版本：${prefix}/v${CURRENT_VERSION}${NC}"
+
+    local display_tag
+    display_tag=$(format_tag "$prefix" "$CURRENT_VERSION")
+    echo -e "${BLUE}📍 當前最新版本：${display_tag}${NC}"
 }
 
 # 解析版本號
@@ -448,20 +514,21 @@ select_increment_type() {
 
 # 建立標籤
 create_tag() {
-    local tag_name="${SELECTED_PREFIX}/v${NEW_VERSION}"
+    local tag_name
+    tag_name=$(format_tag "$SELECTED_PREFIX" "$NEW_VERSION")
     
     # 再次 fetch 確保最新狀態
     echo -e "${BLUE}🔄 最終檢查遠端標籤狀態...${NC}"
-    git fetch --tags &>/dev/null
+    "$GIT_BIN" fetch --tags &>/dev/null
     
     # 檢查標籤是否已存在（本地）
-    if git tag -l | grep -q "^${tag_name}$"; then
+    if "$GIT_BIN" tag -l | grep -q "^${tag_name}$"; then
         echo -e "${RED}❌ 標籤 ${tag_name} 已存在於本地${NC}"
         exit 1
     fi
     
     # 檢查遠端是否有此標籤
-    if git ls-remote --tags origin 2>/dev/null | grep -q "refs/tags/${tag_name}$"; then
+    if "$GIT_BIN" ls-remote --tags origin 2>/dev/null | grep -q "refs/tags/${tag_name}$"; then
         echo -e "${RED}❌ 標籤 ${tag_name} 已存在於遠端${NC}"
         echo -e "${CYAN}💡 請重新執行腳本以獲取最新版本資訊${NC}"
         exit 1
@@ -491,13 +558,13 @@ create_tag() {
     fi
     
     # 建立標籤
-    if git tag -a "$tag_name" -m "Release version ${NEW_VERSION}"; then
+    if "$GIT_BIN" tag -a "$tag_name" -m "Release version ${NEW_VERSION}"; then
         echo -e "${GREEN}✅ 成功建立標籤：${tag_name}${NC}"
         
         # 推送到遠端（如果需要）
         if [ "$PUSH_TO_REMOTE" = true ]; then
             echo -e "${BLUE}🚀 推送標籤到遠端...${NC}"
-            if git push origin "$tag_name"; then
+            if "$GIT_BIN" push origin "$tag_name"; then
                 echo -e "${GREEN}✅ 成功推送標籤到遠端${NC}"
             else
                 echo -e "${YELLOW}⚠️  推送標籤失敗，但本地標籤已建立${NC}"
@@ -515,7 +582,7 @@ main() {
     echo ""
     
     # 檢查是否在 git 專案中
-    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    if ! "$GIT_BIN" rev-parse --git-dir >/dev/null 2>&1; then
         echo -e "${RED}❌ 當前目錄不是 Git 專案${NC}"
         exit 1
     fi
@@ -531,16 +598,15 @@ main() {
     # 獲取遠端最新標籤
     fetch_remote_tags
     
-    # 掃描標籤前綴
-    if scan_tag_prefixes; then
-        # 選擇前綴
-        select_prefix
-        
-        # 獲取最新版本
+    # 掃描版本軌道（prefix + 純 SemVer）
+    scan_tag_tracks
+
+    # 選擇版本軌道
+    select_track
+
+    # 取得目前該軌道的最新版本（軌道為空字串時走純 SemVer）
+    if [ "$HAS_ANY_TAGS" = true ]; then
         get_latest_version "$SELECTED_PREFIX"
-    else
-        # 沒有現有標籤，建立第一個
-        select_prefix
     fi
     
     # 檢查 commit SHA1 是否與最新標籤相同
@@ -560,28 +626,31 @@ main() {
     echo -e "${GREEN}🎉 版本標籤操作完成！${NC}"
 }
 
-# 解析命令列參數
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --push)
-            PUSH_TO_REMOTE=true
-            shift
-            ;;
-        --force)
-            FORCE_MODE=true
-            shift
-            ;;
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        *)
-            echo -e "${RED}❌ 未知參數：$1${NC}"
-            show_help
-            exit 1
-            ;;
-    esac
-done
+# 僅在被直接執行時跑 CLI；被 source 時保留函式供測試使用
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # 解析命令列參數
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --push)
+                PUSH_TO_REMOTE=true
+                shift
+                ;;
+            --force)
+                FORCE_MODE=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}❌ 未知參數：$1${NC}"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
 
-# 執行主程式
-main
+    # 執行主程式
+    main
+fi
