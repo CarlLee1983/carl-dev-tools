@@ -132,7 +132,9 @@ check_commit_sha() {
     
     # 獲取該前綴下的最新標籤
     local latest_tag
-    latest_tag=$("$GIT_BIN" tag -l "${prefix}/v*" 2>/dev/null | sort -V | tail -n1)
+    local glob
+    glob=$(tag_glob "$prefix")
+    latest_tag=$("$GIT_BIN" tag -l "$glob" 2>/dev/null | sort -V | tail -n1)
     
     if [ -z "$latest_tag" ]; then
         # 沒有現有標籤，可以建立
@@ -379,20 +381,24 @@ select_prefix() {
     echo -e "${GREEN}✅ 已選擇前綴：${SELECTED_PREFIX}${NC}"
 }
 
-# 獲取指定前綴的最新版本
+# 獲取指定 prefix 的最新版本（prefix 為空 = 純 SemVer 軌道）
 get_latest_version() {
     local prefix="$1"
+    local glob
+    glob=$(tag_glob "$prefix")
+
     local latest_tag
-    
-    latest_tag=$("$GIT_BIN" tag -l "${prefix}/v*" 2>/dev/null | sort -V | tail -n1)
-    
+    latest_tag=$("$GIT_BIN" tag -l "$glob" 2>/dev/null | sort -V | tail -n1)
+
     if [ -z "$latest_tag" ]; then
         CURRENT_VERSION="0.0.0"
     else
-        CURRENT_VERSION=$(echo "$latest_tag" | sed "s|^${prefix}/v||")
+        CURRENT_VERSION=$(parse_tag_version "$latest_tag" "$prefix")
     fi
-    
-    echo -e "${BLUE}📍 當前最新版本：${prefix}/v${CURRENT_VERSION}${NC}"
+
+    local display_tag
+    display_tag=$(format_tag "$prefix" "$CURRENT_VERSION")
+    echo -e "${BLUE}📍 當前最新版本：${display_tag}${NC}"
 }
 
 # 解析版本號
@@ -479,7 +485,8 @@ select_increment_type() {
 
 # 建立標籤
 create_tag() {
-    local tag_name="${SELECTED_PREFIX}/v${NEW_VERSION}"
+    local tag_name
+    tag_name=$(format_tag "$SELECTED_PREFIX" "$NEW_VERSION")
     
     # 再次 fetch 確保最新狀態
     echo -e "${BLUE}🔄 最終檢查遠端標籤狀態...${NC}"
