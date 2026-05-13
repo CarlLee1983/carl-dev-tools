@@ -109,3 +109,13 @@ test('clean: --dry-run does not invoke prune; prints planned command', () => {
     // 預計指令仍須在 stdout 列出
     assert.match(r.stdout, /預計指令.*system prune --force/);
 });
+
+test('clean: --force runs docker system prune --force without --volumes', () => {
+    const r = runClean({ args: ['--force'] });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const lines = r.log.split('\n').filter(Boolean);
+    // 最後一筆呼叫須是 system prune --force（前面是 pre-check 的 info）
+    assert.equal(lines[lines.length - 1], 'system prune --force');
+    // 任何呼叫都不該帶 --volumes
+    assert.doesNotMatch(r.log, /--volumes/);
+});

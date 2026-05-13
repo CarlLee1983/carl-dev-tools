@@ -74,8 +74,18 @@ main() {
         exit 0
     fi
 
-    # 後續任務補 y/N 與實際 prune 呼叫
-    echo -e "${YELLOW}（尚未實作實際 prune 呼叫）${NC}"
+    if [[ "$FORCE" != "true" ]]; then
+        echo -ne "${YELLOW}確定要執行清理嗎？(y/N): ${NC}"
+        local ans
+        read -r ans
+        if [[ "$ans" != "y" && "$ans" != "Y" ]]; then
+            echo -e "${RED}❌ 已取消${NC}"
+            exit 1
+        fi
+    fi
+
+    "$DOCKER_BIN" "${prune_cmd[@]}"
+    echo -e "${GREEN}✅ Docker 清理完成${NC}"
 }
 
 # 僅在被直接執行時跑 CLI；被 source 時保留函式供測試使用
